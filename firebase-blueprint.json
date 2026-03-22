@@ -1,0 +1,164 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile information and preferences",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "age": { "type": "integer" },
+        "location_city": { "type": "string" },
+        "location_country": { "type": "string" },
+        "interests": { "type": "array", "items": { "type": "string" } },
+        "travel_preferences": { "type": "object" },
+        "bio": { "type": "string" },
+        "profile_pic_url": { "type": "string", "format": "uri" },
+        "reputation_score": { "type": "number" },
+        "is_email_verified": { "type": "boolean" },
+        "is_id_verified": { "type": "boolean" },
+        "social_links": { "type": "object" },
+        "vibe_quiz_results": { "type": "object" },
+        "gender": { "type": "string", "enum": ["male", "female", "other", "prefer_not_to_say"] },
+        "phone_number": { "type": "string" },
+        "is_phone_verified": { "type": "boolean" },
+        "is_verified": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "name"]
+    },
+    "Review": {
+      "title": "Peer Review",
+      "description": "User rating and review after a trip",
+      "type": "object",
+      "properties": {
+        "trip_id": { "type": "string" },
+        "reviewer_id": { "type": "string" },
+        "reviewee_id": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["trip_id", "reviewer_id", "reviewee_id", "rating"]
+    },
+    "Shoutout": {
+      "title": "Public Shoutout",
+      "description": "Public post looking for travel companions",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "content": { "type": "string" },
+        "location": { "type": "string" },
+        "dates": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "content"]
+    },
+    "ItineraryItem": {
+      "title": "Itinerary Item",
+      "description": "Planned activity for a trip",
+      "type": "object",
+      "properties": {
+        "trip_id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "time": { "type": "string" },
+        "day": { "type": "integer" },
+        "votes": { "type": "array", "items": { "type": "string" } },
+        "created_by": { "type": "string" }
+      },
+      "required": ["trip_id", "title", "day"]
+    },
+    "Trip": {
+      "title": "Trip",
+      "description": "Travel trip details",
+      "type": "object",
+      "properties": {
+        "organizer_id": { "type": "string" },
+        "destination_city": { "type": "string" },
+        "destination_country": { "type": "string" },
+        "start_date": { "type": "string", "format": "date" },
+        "end_date": { "type": "string", "format": "date" },
+        "budget_max": { "type": "integer" },
+        "max_members": { "type": "integer" },
+        "current_members": { "type": "integer" },
+        "travel_style": { "type": "string" },
+        "description": { "type": "string" },
+        "is_women_only": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["open", "full", "ongoing", "completed", "cancelled"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizer_id", "destination_city", "start_date", "end_date", "status"]
+    },
+    "TripMember": {
+      "title": "Trip Member",
+      "description": "Relationship between a user and a trip",
+      "type": "object",
+      "properties": {
+        "trip_id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "role": { "type": "string", "enum": ["organizer", "member"] },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "left"] },
+        "request_message": { "type": "string" },
+        "joined_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["trip_id", "user_id", "role", "status"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Chat message",
+      "type": "object",
+      "properties": {
+        "channel_id": { "type": "string" },
+        "sender_id": { "type": "string" },
+        "content": { "type": "string" },
+        "media_urls": { "type": "array", "items": { "type": "string" } },
+        "message_type": { "type": "string", "enum": ["text", "image", "file", "system"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["channel_id", "sender_id", "content", "message_type"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Trip expense",
+      "type": "object",
+      "properties": {
+        "trip_id": { "type": "string" },
+        "paid_by": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "description": { "type": "string" },
+        "split_among": { "type": "array", "items": { "type": "string" } },
+        "category": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["trip_id", "paid_by", "amount", "currency"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "User notification",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "type": { "type": "string" },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "is_read": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "type", "title", "body"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "User", "description": "User profiles" },
+    "/trips/{tripId}": { "schema": "Trip", "description": "Trips" },
+    "/trips/{tripId}/members/{memberId}": { "schema": "TripMember", "description": "Trip members" },
+    "/trips/{tripId}/expenses/{expenseId}": { "schema": "Expense", "description": "Trip expenses" },
+    "/trips/{tripId}/itinerary/{itemId}": { "schema": "ItineraryItem", "description": "Trip itinerary items" },
+    "/reviews/{reviewId}": { "schema": "Review", "description": "User reviews" },
+    "/shoutouts/{shoutoutId}": { "schema": "Shoutout", "description": "Public shoutouts" },
+    "/messages/{messageId}": { "schema": "Message", "description": "Chat messages" },
+    "/notifications/{notificationId}": { "schema": "Notification", "description": "User notifications" }
+  }
+}
