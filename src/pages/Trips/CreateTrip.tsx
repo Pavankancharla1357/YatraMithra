@@ -65,6 +65,7 @@ export const CreateTrip: React.FC = () => {
         ...formData,
         organizer_id: user.uid,
         organizer_name: profile?.name || user.displayName || 'Organizer',
+        organizer_photo_url: profile?.photo_url || user.photoURL || null,
         organizer_verified: profile?.is_verified || false,
         organizer_vibe: profile?.vibe_quiz_results || null,
         budget_max: parseInt(formData.budget_max),

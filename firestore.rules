@@ -94,7 +94,8 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isOwner(userId) && request.resource.data.uid == request.auth.uid;
-      allow update: if isOwner(userId) && uidNotModified();
+      allow update: if (isOwner(userId) && uidNotModified()) || 
+                      (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reputation_score']));
     }
 
     match /trips/{tripId} {
@@ -127,6 +128,18 @@ service cloud.firestore {
       }
     }
 
+    match /buddy_posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+    }
+
+    match /channels/{channelId} {
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participants;
+      allow update: if isAuthenticated() && request.auth.uid in resource.data.participants;
+    }
+
     match /messages/{messageId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && (
@@ -152,6 +165,21 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow update: if isOwner(resource.data.user_id) && 
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read']);
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.reviewer_id == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.reviewer_id == request.auth.uid;
+    }
+
+    match /polls/{pollId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.creator_id == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes']) &&
+        request.resource.data.votes.diff(resource.data.votes).affectedKeys().hasOnly([request.auth.uid])
+      );
     }
     
     // Default deny

@@ -98,9 +98,13 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
           </div>
           
           <div className="flex items-center justify-between pt-4 border-t border-gray-50">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
-                <User className="w-4 h-4 text-indigo-600" />
+            <Link to={`/profile/${trip.organizer_id}`} className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+              <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center overflow-hidden">
+                {trip.organizer_photo_url ? (
+                  <img src={trip.organizer_photo_url} alt={trip.organizer_name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <User className="w-4 h-4 text-indigo-600" />
+                )}
               </div>
               <div className="flex items-center space-x-1">
                 <span className="text-xs font-medium text-gray-600">{trip.organizer_name || 'Organizer'}</span>
@@ -110,7 +114,7 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
                   </div>
                 )}
               </div>
-            </div>
+            </Link>
             <span className="text-indigo-600 font-bold text-sm">View Details</span>
           </div>
         </div>

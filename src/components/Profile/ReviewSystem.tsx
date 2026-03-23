@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, increment, getDoc } from 'firebase/firestore';
 import { useAuth } from '../../components/Auth/AuthContext';
+import { createNotification } from '../../services/notificationService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, MessageSquare, User, Send } from 'lucide-react';
 import { handleFirestoreError, OperationType } from '../../utils/firestoreErrorHandler';
+import { Link } from 'react-router-dom';
 
 interface ReviewSystemProps {
   targetUserId: string;
@@ -16,6 +18,7 @@ export const ReviewSystem: React.FC<ReviewSystemProps> = ({ targetUserId }) => {
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     const q = query(collection(db, 'reviews'), where('target_user_id', '==', targetUserId));
@@ -31,16 +34,39 @@ export const ReviewSystem: React.FC<ReviewSystemProps> = ({ targetUserId }) => {
 
     setIsSubmitting(true);
     try {
+      const reviewerName = profile?.name || 'Traveler';
       await addDoc(collection(db, 'reviews'), {
         reviewer_id: user.uid,
-        reviewer_name: profile?.name || 'Traveler',
+        reviewer_name: reviewerName,
         target_user_id: targetUserId,
         rating: newReview.rating,
         comment: newReview.comment.trim(),
         created_at: serverTimestamp()
       });
+
+      // Update target user's reputation score
+      // We'll add the rating to their score (or we could do average, but simple increment/add is easier for now)
+      // Let's just increment by the rating value
+      const userRef = doc(db, 'users', targetUserId);
+      await updateDoc(userRef, {
+        reputation_score: increment(newReview.rating)
+      });
+
+      // Notify the target user
+      await createNotification(
+        targetUserId,
+        'new_review',
+        'New Review Received!',
+        `${reviewerName} left you a ${newReview.rating}-star review.`,
+        `/profile/${targetUserId}`
+      );
+
+      setSuccess('Review posted successfully!');
       setNewReview({ rating: 5, comment: '' });
-      setShowForm(false);
+      setTimeout(() => {
+        setSuccess('');
+        setShowForm(false);
+      }, 2000);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'reviews');
     } finally {
@@ -86,6 +112,11 @@ export const ReviewSystem: React.FC<ReviewSystemProps> = ({ targetUserId }) => {
             className="bg-gray-50 p-8 rounded-[2rem] border border-gray-100"
           >
             <form onSubmit={handleSubmit} className="space-y-6">
+              {success && (
+                <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl text-sm font-bold text-center">
+                  {success}
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-widest">Rating</label>
                 <div className="flex space-x-2">
@@ -150,14 +181,18 @@ export const ReviewSystem: React.FC<ReviewSystemProps> = ({ targetUserId }) => {
             >
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center">
+                  <Link to={`/profile/${review.reviewer_id}`} className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center hover:opacity-80 transition-opacity">
                     <User className="w-5 h-5 text-indigo-600" />
-                  </div>
+                  </Link>
                   <div>
-                    <h4 className="font-bold text-gray-900 leading-none">{review.reviewer_name}</h4>
-                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                      {review.created_at?.toDate ? new Date(review.created_at.toDate()).toLocaleDateString() : 'Recent'}
-                    </span>
+                    <Link to={`/profile/${review.reviewer_id}`} className="font-bold text-gray-900 leading-none hover:text-indigo-600 transition-colors">
+                      {review.reviewer_name}
+                    </Link>
+                    <div className="mt-1">
+                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                        {review.created_at?.toDate ? new Date(review.created_at.toDate()).toLocaleDateString() : 'Recent'}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center text-amber-500">

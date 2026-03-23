@@ -14,7 +14,8 @@
         "interests": { "type": "array", "items": { "type": "string" } },
         "travel_preferences": { "type": "object" },
         "bio": { "type": "string" },
-        "profile_pic_url": { "type": "string", "format": "uri" },
+        "photo_url": { "type": "string", "format": "uri" },
+        "cover_url": { "type": "string", "format": "uri" },
         "reputation_score": { "type": "number" },
         "is_email_verified": { "type": "boolean" },
         "is_id_verified": { "type": "boolean" },
@@ -42,12 +43,13 @@
       },
       "required": ["trip_id", "reviewer_id", "reviewee_id", "rating"]
     },
-    "Shoutout": {
-      "title": "Public Shoutout",
-      "description": "Public post looking for travel companions",
+    "BuddyPost": {
+      "title": "Buddy Post",
+      "description": "Post looking for a travel buddy",
       "type": "object",
       "properties": {
         "user_id": { "type": "string" },
+        "user_name": { "type": "string" },
         "content": { "type": "string" },
         "location": { "type": "string" },
         "dates": { "type": "string" },
@@ -105,6 +107,19 @@
       },
       "required": ["trip_id", "user_id", "role", "status"]
     },
+    "Channel": {
+      "title": "Chat Channel",
+      "description": "A chat channel between users or for a trip",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["direct", "trip"] },
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "trip_id": { "type": "string" },
+        "last_message": { "type": "string" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "participants"]
+    },
     "Message": {
       "title": "Message",
       "description": "Chat message",
@@ -114,10 +129,26 @@
         "sender_id": { "type": "string" },
         "content": { "type": "string" },
         "media_urls": { "type": "array", "items": { "type": "string" } },
-        "message_type": { "type": "string", "enum": ["text", "image", "file", "system"] },
+        "message_type": { "type": "string", "enum": ["text", "image", "file", "system", "poll"] },
+        "poll_id": { "type": "string", "description": "ID of the poll if message_type is poll" },
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["channel_id", "sender_id", "content", "message_type"]
+    },
+    "Poll": {
+      "title": "Poll",
+      "description": "A poll in a chat channel",
+      "type": "object",
+      "properties": {
+        "channel_id": { "type": "string" },
+        "creator_id": { "type": "string" },
+        "question": { "type": "string" },
+        "options": { "type": "array", "items": { "type": "string" } },
+        "votes": { "type": "object", "description": "Map of userId to optionIndex" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["open", "closed"] }
+      },
+      "required": ["channel_id", "creator_id", "question", "options"]
     },
     "Expense": {
       "title": "Expense",
@@ -157,8 +188,10 @@
     "/trips/{tripId}/expenses/{expenseId}": { "schema": "Expense", "description": "Trip expenses" },
     "/trips/{tripId}/itinerary/{itemId}": { "schema": "ItineraryItem", "description": "Trip itinerary items" },
     "/reviews/{reviewId}": { "schema": "Review", "description": "User reviews" },
-    "/shoutouts/{shoutoutId}": { "schema": "Shoutout", "description": "Public shoutouts" },
+    "/buddy_posts/{postId}": { "schema": "BuddyPost", "description": "Travel buddy posts" },
+    "/channels/{channelId}": { "schema": "Channel", "description": "Chat channels" },
     "/messages/{messageId}": { "schema": "Message", "description": "Chat messages" },
+    "/polls/{pollId}": { "schema": "Poll", "description": "Chat polls" },
     "/notifications/{notificationId}": { "schema": "Notification", "description": "User notifications" }
   }
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../../firebase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, getDoc, doc, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../../components/Auth/AuthContext';
 import { MessageSquare, Search, ChevronRight, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -10,33 +10,110 @@ export const ChatList: React.FC = () => {
   const { user } = useAuth();
   const [chats, setChats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [unreadChatIds, setUnreadChatIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user) return;
 
+    // Listen for unread message notifications to show red dots
+    const unreadQ = query(
+      collection(db, 'notifications'),
+      where('user_id', '==', user.uid),
+      where('type', '==', 'new_message'),
+      where('is_read', '==', false)
+    );
+
+    const unsubscribeUnread = onSnapshot(unreadQ, (snapshot) => {
+      const ids = new Set<string>();
+      snapshot.docs.forEach(doc => {
+        const link = doc.data().link;
+        if (link && link.startsWith('/messages/')) {
+          const chatId = link.split('/').pop();
+          if (chatId) ids.add(chatId);
+        }
+      });
+      setUnreadChatIds(ids);
+    });
+
     const fetchChats = async () => {
       try {
-        // Fetch trips where user is an approved member
+        setLoading(true);
+        // 1. Fetch trip-based chats (existing logic)
         const memberQ = query(collection(db, 'trip_members'), where('user_id', '==', user.uid), where('status', '==', 'approved'));
         const memberSnapshot = await getDocs(memberQ);
         const memberTripIds = memberSnapshot.docs.map(doc => doc.data().trip_id);
 
-        // Fetch trips where user is the organizer
         const organizerQ = query(collection(db, 'trips'), where('organizer_id', '==', user.uid));
         const organizerSnapshot = await getDocs(organizerQ);
         const organizerTripIds = organizerSnapshot.docs.map(doc => doc.id);
 
-        // Combine unique trip IDs
         const allTripIds = Array.from(new Set([...memberTripIds, ...organizerTripIds]));
-
+        
+        let tripChats: any[] = [];
         if (allTripIds.length > 0) {
-          // Firestore 'in' query supports up to 10 items. For more, we'd need multiple queries.
-          // For MVP, we'll take the first 10.
           const tripsQ = query(collection(db, 'trips'), where('__name__', 'in', allTripIds.slice(0, 10)));
           const tripsSnapshot = await getDocs(tripsQ);
-          const tripsData = tripsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setChats(tripsData);
+          tripChats = tripsSnapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            type: 'group',
+            name: `${doc.data().destination_city} Group`,
+            lastMessage: 'Tap to open group chat',
+            icon: doc.data().destination_city.charAt(0),
+            ...doc.data(),
+            lastMessageTime: doc.data().last_message_time || doc.data().updated_at || doc.data().created_at
+          }));
         }
+
+        // 2. Fetch direct message channels
+        const channelsQ = query(
+          collection(db, 'channels'), 
+          where('participants', 'array-contains', user.uid)
+        );
+        const channelsSnapshot = await getDocs(channelsQ);
+        const directChatsPromises = channelsSnapshot.docs.map(async (docSnapshot) => {
+          const data = docSnapshot.data();
+          let name = 'Direct Message';
+          let icon = 'DM';
+          let photoUrl = null;
+          let otherUserId = null;
+
+          if (data.type === 'direct') {
+            otherUserId = data.participants.find((id: string) => id !== user.uid);
+            if (otherUserId) {
+              const userDoc = await getDoc(doc(db, 'users', otherUserId));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                name = userData.name || 'Traveler';
+                icon = name.charAt(0);
+                photoUrl = userData.photo_url;
+              }
+            }
+          }
+
+          return {
+            id: docSnapshot.id,
+            type: data.type,
+            name,
+            lastMessage: data.last_message || 'No messages yet',
+            lastMessageTime: data.last_message_time || data.updated_at,
+            participants: data.participants,
+            icon,
+            photoUrl,
+            otherUserId
+          };
+        });
+
+        const directChats = await Promise.all(directChatsPromises);
+
+        // Combine and sort by time
+        const allChats = [...tripChats, ...directChats].sort((a, b) => {
+          const timeA = a.lastMessageTime?.seconds || 0;
+          const timeB = b.lastMessageTime?.seconds || 0;
+          return timeB - timeA;
+        });
+
+        setChats(allChats);
       } catch (error) {
         console.error('Error fetching chats:', error);
       } finally {
@@ -45,7 +122,32 @@ export const ChatList: React.FC = () => {
     };
 
     fetchChats();
+    return () => unsubscribeUnread();
   }, [user]);
+
+  const filteredChats = chats.filter(chat => 
+    chat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    chat.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const formatTime = (timestamp: any) => {
+    if (!timestamp) return null;
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      if (isNaN(date.getTime())) return null;
+      
+      const now = new Date();
+      const isToday = date.toDateString() === now.toDateString();
+      
+      if (isToday) {
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } else {
+        return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      }
+    } catch (e) {
+      return null;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -62,6 +164,8 @@ export const ChatList: React.FC = () => {
           <input
             type="text"
             placeholder="Search conversations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all"
           />
         </div>
@@ -71,35 +175,79 @@ export const ChatList: React.FC = () => {
             <div className="text-center py-10">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
             </div>
-          ) : chats.length > 0 ? (
-            chats.map((chat) => (
+          ) : filteredChats.length > 0 ? (
+            filteredChats.map((chat) => (
               <motion.div
                 key={chat.id}
                 whileHover={{ x: 4 }}
-                className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all"
+                className="bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all relative overflow-hidden"
               >
-                <Link to={`/messages/${chat.id}`} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center">
-                      <span className="text-indigo-600 font-bold text-xl">
-                        {chat.destination_city.charAt(0)}
-                      </span>
-                    </div>
+                <div className="flex items-stretch">
+                  {/* Avatar/Profile Link */}
+                  <div className="p-4 pr-0">
+                    {chat.type === 'direct' && chat.otherUserId ? (
+                      <Link 
+                        to={`/profile/${chat.otherUserId}`}
+                        className="block w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center relative overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
+                      >
+                        {chat.photoUrl ? (
+                          <img src={chat.photoUrl} alt={chat.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <span className="text-indigo-600 font-bold text-xl">{chat.icon}</span>
+                        )}
+                        {unreadChatIds.has(chat.id) && (
+                          <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full" />
+                        )}
+                      </Link>
+                    ) : (
+                      <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center relative">
+                        <span className="text-indigo-600 font-bold text-xl">{chat.icon}</span>
+                        {unreadChatIds.has(chat.id) && (
+                          <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Chat Link */}
+                  <Link to={`/messages/${chat.id}`} className="flex-1 p-4 flex items-center justify-between">
                     <div>
-                      <h3 className="font-bold text-gray-900">{chat.destination_city} Group</h3>
-                      <p className="text-sm text-gray-500 line-clamp-1">Tap to open group chat</p>
+                      <h3 className="font-bold text-gray-900">
+                        {chat.name}
+                      </h3>
+                      <p className={`text-sm line-clamp-1 ${unreadChatIds.has(chat.id) ? 'text-indigo-600 font-medium' : 'text-gray-500'}`}>
+                        {chat.lastMessage}
+                      </p>
                     </div>
-                  </div>
-                  <div className="flex flex-col items-end space-y-2">
-                    <div className="flex items-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                      <Clock className="w-3 h-3 mr-1" />
-                      Just now
+                    <div className="flex flex-col items-end space-y-2">
+                      {formatTime(chat.lastMessageTime) && (
+                        <div className="flex items-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                          <Clock className="w-3 h-3 mr-1" />
+                          {formatTime(chat.lastMessageTime)}
+                        </div>
+                      )}
+                      <ChevronRight className="w-5 h-5 text-gray-300" />
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-300" />
-                  </div>
-                </Link>
+                  </Link>
+                </div>
               </motion.div>
             ))
+          ) : searchQuery ? (
+            <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Search className="text-gray-300 w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-1">No conversations found</h3>
+              <p className="text-sm text-gray-500 max-w-xs mx-auto">
+                We couldn't find any messages matching "{searchQuery}".
+              </p>
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="mt-6 text-indigo-600 font-bold text-sm hover:underline"
+              >
+                Clear search
+              </button>
+            </div>
           ) : (
             <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">

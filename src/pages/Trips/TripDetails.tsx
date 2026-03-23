@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../components/Auth/AuthContext';
 import { JoinRequestModal } from '../../components/Trips/JoinRequestModal';
 import { EditTripModal } from '../../components/Trips/EditTripModal';
@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export const TripDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, profile: currentUserProfile } = useAuth();
   const navigate = useNavigate();
   const [trip, setTrip] = useState<any>(null);
   const [organizer, setOrganizer] = useState<any>(null);
@@ -21,6 +21,51 @@ export const TripDetails: React.FC = () => {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'itinerary'>('overview');
+  const [messaging, setMessaging] = useState(false);
+
+  const handleMessageOrganizer = async () => {
+    if (!user || !trip?.organizer_id || user.uid === trip.organizer_id) return;
+
+    setMessaging(true);
+    try {
+      const q = query(
+        collection(db, 'channels'),
+        where('type', '==', 'direct'),
+        where('participants', 'array-contains', user.uid)
+      );
+      
+      const snapshot = await getDocs(q);
+      let existingChannel = snapshot.docs.find(doc => 
+        doc.data().participants.includes(trip.organizer_id)
+      );
+
+      if (existingChannel) {
+        navigate(`/messages/${existingChannel.id}`);
+      } else {
+        const newChannelRef = await addDoc(collection(db, 'channels'), {
+          type: 'direct',
+          participants: [user.uid, trip.organizer_id],
+          last_message_time: serverTimestamp(),
+          last_message: `Started a conversation about trip: ${trip.destination_city}`
+        });
+        
+        await addDoc(collection(db, 'messages'), {
+          channel_id: newChannelRef.id,
+          sender_id: 'system',
+          sender_name: 'WanderMatch Bot',
+          content: `👋 Hi! ${currentUserProfile?.name || 'Someone'} is interested in your trip to ${trip.destination_city} and started a conversation.`,
+          message_type: 'system',
+          created_at: serverTimestamp()
+        });
+
+        navigate(`/messages/${newChannelRef.id}`);
+      }
+    } catch (error) {
+      console.error('Error initiating chat:', error);
+    } finally {
+      setMessaging(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -210,8 +255,12 @@ export const TripDetails: React.FC = () => {
                         onClick={() => navigate(`/profile/${member.uid}`)}
                         className="flex items-center p-4 rounded-2xl border border-gray-50 hover:border-indigo-100 hover:bg-indigo-50/30 transition-all cursor-pointer group"
                       >
-                        <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
-                          <User className="w-6 h-6 text-indigo-600" />
+                        <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mr-4 group-hover:scale-110 transition-transform overflow-hidden">
+                          {member.photo_url ? (
+                            <img src={member.photo_url} alt={member.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <User className="w-6 h-6 text-indigo-600" />
+                          )}
                         </div>
                         <div>
                           <h4 className="font-bold text-gray-900">{member.name}</h4>
@@ -234,8 +283,12 @@ export const TripDetails: React.FC = () => {
             <div className="bg-white p-6 rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Organizer</h3>
               <div className="flex items-center space-x-4 mb-6">
-                <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center">
-                  <User className="w-8 h-8 text-indigo-600" />
+                <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center overflow-hidden">
+                  {organizer?.photo_url || trip.organizer_photo_url ? (
+                    <img src={organizer?.photo_url || trip.organizer_photo_url} alt={organizer?.name || trip.organizer_name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <User className="w-8 h-8 text-indigo-600" />
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center space-x-2">
@@ -262,12 +315,24 @@ export const TripDetails: React.FC = () => {
                   <span>{organizer?.location_city || 'India'}, {organizer?.location_country || ''}</span>
                 </div>
               </div>
-              <button 
-                onClick={() => navigate(`/profile/${trip.organizer_id}`)}
-                className="w-full py-3 border-2 border-gray-100 text-gray-700 rounded-2xl font-bold hover:bg-gray-50 transition-all"
-              >
-                View Profile
-              </button>
+              <div className="flex flex-col space-y-2">
+                <button 
+                  onClick={() => navigate(`/profile/${trip.organizer_id}`)}
+                  className="w-full py-3 border-2 border-gray-100 text-gray-700 rounded-2xl font-bold hover:bg-gray-50 transition-all"
+                >
+                  View Profile
+                </button>
+                {user && user.uid !== trip.organizer_id && (
+                  <button 
+                    onClick={handleMessageOrganizer}
+                    disabled={messaging}
+                    className="w-full py-3 bg-indigo-50 text-indigo-600 rounded-2xl font-bold hover:bg-indigo-100 transition-all flex items-center justify-center disabled:opacity-50"
+                  >
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    {messaging ? 'Connecting...' : 'Message'}
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="bg-white p-6 rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100">

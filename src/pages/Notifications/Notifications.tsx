@@ -137,7 +137,11 @@ export const Notifications: React.FC = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                           <Clock className="w-3 h-3 mr-1.5" />
-                          {n.created_at ? formatDistanceToNow(new Date(n.created_at), { addSuffix: true }) : 'Just now'}
+                          {n.created_at ? (
+                            n.created_at.toDate ? 
+                            formatDistanceToNow(n.created_at.toDate(), { addSuffix: true }) : 
+                            formatDistanceToNow(new Date(n.created_at), { addSuffix: true })
+                          ) : 'Just now'}
                         </div>
                         
                         {n.link && (

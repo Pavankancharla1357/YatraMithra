@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../../firebase';
-import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs, getDoc, doc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs, getDoc, doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../../components/Auth/AuthContext';
 import { createNotification } from '../../services/notificationService';
 import { Send, Image, Paperclip, Smile } from 'lucide-react';
@@ -51,6 +51,32 @@ export const ChatInput: React.FC<ChatInputProps> = ({ channelId }) => {
         created_at: serverTimestamp(),
       });
 
+      // Update channel last message (for both trips and direct channels)
+      try {
+        const channelRef = doc(db, 'channels', channelId);
+        const channelSnap = await getDoc(channelRef);
+        if (channelSnap.exists()) {
+          await updateDoc(channelRef, {
+            last_message: message.trim(),
+            last_message_time: serverTimestamp()
+          });
+        } else {
+          // If it's a trip group chat, we might want to update the trip doc too, 
+          // but for now let's just ensure direct channels work.
+          // Actually, let's check if it's a trip
+          const tripRef = doc(db, 'trips', channelId);
+          const tripSnap = await getDoc(tripRef);
+          if (tripSnap.exists()) {
+            await updateDoc(tripRef, {
+              last_message: message.trim(),
+              last_message_time: serverTimestamp()
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Error updating channel metadata:', e);
+      }
+
       // Notify other members
       const tripRef = doc(db, 'trips', channelId);
       const tripSnap = await getDoc(tripRef);
@@ -88,6 +114,25 @@ export const ChatInput: React.FC<ChatInputProps> = ({ channelId }) => {
         }
 
         await Promise.all(notificationPromises);
+      } else {
+        // Check if it's a direct channel
+        const channelRef = doc(db, 'channels', channelId);
+        const channelSnap = await getDoc(channelRef);
+        if (channelSnap.exists()) {
+          const channelData = channelSnap.data();
+          if (channelData.type === 'direct') {
+            const otherUserId = channelData.participants.find((uid: string) => uid !== user.uid);
+            if (otherUserId) {
+              await createNotification(
+                otherUserId,
+                'new_message',
+                `New message from ${senderName}`,
+                `${message.trim().substring(0, 50)}${message.length > 50 ? '...' : ''}`,
+                `/messages/${channelId}`
+              );
+            }
+          }
+        }
       }
 
       setMessage('');

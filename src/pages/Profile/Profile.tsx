@@ -9,6 +9,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import Cropper from 'react-easy-crop';
 import { TravelVibeQuiz } from '../../components/Profile/TravelVibeQuiz';
 import { ReviewSystem } from '../../components/Profile/ReviewSystem';
+import { MyBuddyPosts } from '../../components/Profile/MyBuddyPosts';
+import { MyChatHistory } from '../../components/Profile/MyChatHistory';
 
 interface CropArea {
   x: number;
@@ -27,7 +29,7 @@ export const Profile: React.FC = () => {
   const { user, profile, refreshProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
-  const [activeTab, setActiveTab] = useState<'about' | 'reviews' | 'security'>('about');
+  const [activeTab, setActiveTab] = useState<'about' | 'reviews' | 'security' | 'buddy' | 'chats'>('about');
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [verifying, setVerifying] = useState(false);
@@ -550,12 +552,12 @@ export const Profile: React.FC = () => {
           {/* Main Content Area */}
           <div className="lg:col-span-8 space-y-8 sm:space-y-10">
             {/* Navigation Tabs - High End Pill Design */}
-            <div className="flex p-1.5 bg-white rounded-xl shadow-[0_10px_25px_-10px_rgba(0,0,0,0.05)] border border-gray-50 max-w-md">
-              {(['about', 'reviews', 'security'] as const).map((tab) => (
+            <div className="flex p-1.5 bg-white rounded-xl shadow-[0_10px_25px_-10px_rgba(0,0,0,0.05)] border border-gray-50 max-w-2xl overflow-x-auto no-scrollbar">
+              {(['about', 'reviews', 'buddy', 'chats', 'security'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`flex-1 py-2.5 rounded-lg font-black text-[11px] sm:text-xs capitalize transition-all relative overflow-hidden group ${
+                  className={`flex-1 min-w-[80px] py-2.5 rounded-lg font-black text-[11px] sm:text-xs capitalize transition-all relative overflow-hidden group ${
                     activeTab === tab 
                       ? 'text-white' 
                       : 'text-gray-400 hover:text-gray-600'
@@ -811,6 +813,30 @@ export const Profile: React.FC = () => {
                   className="bg-white p-8 rounded-3xl shadow-[0_15px_40px_-15px_rgba(0,0,0,0.06)] border border-gray-50"
                 >
                   <ReviewSystem targetUserId={user!.uid} />
+                </motion.div>
+              )}
+
+              {activeTab === 'buddy' && (
+                <motion.div
+                  key="buddy"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-6"
+                >
+                  <MyBuddyPosts />
+                </motion.div>
+              )}
+
+              {activeTab === 'chats' && (
+                <motion.div
+                  key="chats"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-6"
+                >
+                  <MyChatHistory />
                 </motion.div>
               )}
             </AnimatePresence>

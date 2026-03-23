@@ -1,7 +1,7 @@
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
-export type NotificationType = 'request_received' | 'request_accepted' | 'new_message' | 'trip_updated';
+export type NotificationType = 'request_received' | 'request_accepted' | 'new_message' | 'trip_updated' | 'new_review';
 
 export const createNotification = async (
   userId: string,

@@ -20,7 +20,7 @@ import { TripDetails } from './pages/Trips/TripDetails';
 import { TripExpenses } from './pages/Trips/TripExpenses';
 import { ChatList } from './pages/Messages/ChatList';
 import { ChatRoom } from './pages/Messages/ChatRoom';
-import { TravelFeed } from './pages/Feed/TravelFeed';
+import { BuddyFinder } from './pages/Feed/BuddyFinder';
 import { Notifications } from './pages/Notifications/Notifications';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -58,7 +58,14 @@ export default function App() {
               } 
             />
             <Route path="/discover" element={<DiscoverTrips />} />
-            <Route path="/feed" element={<TravelFeed />} />
+            <Route 
+              path="/buddy-finder" 
+              element={
+                <ProtectedRoute>
+                  <BuddyFinder />
+                </ProtectedRoute>
+              } 
+            />
             <Route 
               path="/trips/create" 
               element={

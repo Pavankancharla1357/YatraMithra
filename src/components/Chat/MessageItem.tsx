@@ -1,7 +1,9 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../components/Auth/AuthContext';
 import { motion } from 'motion/react';
-import { Check } from 'lucide-react';
+import { Check, BarChart2 } from 'lucide-react';
+import { PollItem } from './PollItem';
 
 interface MessageItemProps {
   message: any;
@@ -11,6 +13,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
   const { user } = useAuth();
   const isMe = message.sender_id === user?.uid;
   const isSystem = message.message_type === 'system';
+  const isPoll = message.message_type === 'poll';
 
   if (isSystem) {
     return (
@@ -30,9 +33,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
       animate={{ opacity: 1, scale: 1 }}
       className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-4`}
     >
-      <div className={`max-w-[75%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+      <div className={`max-w-[85%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
         {!isMe && (
-          <div className="flex items-center space-x-1 mb-1 ml-1">
+          <Link to={`/profile/${message.sender_id}`} className="flex items-center space-x-1 mb-1 ml-1 hover:opacity-80 transition-opacity">
             <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">
               {message.sender_name || 'Companion'}
             </span>
@@ -41,17 +44,23 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
                 <Check className="w-2 h-2 text-white" strokeWidth={4} />
               </div>
             )}
+          </Link>
+        )}
+        
+        {isPoll ? (
+          <PollItem pollId={message.poll_id} />
+        ) : (
+          <div
+            className={`px-4 py-3 rounded-2xl shadow-sm ${
+              isMe
+                ? 'bg-indigo-600 text-white rounded-tr-none'
+                : 'bg-white text-gray-900 border border-gray-100 rounded-tl-none'
+            }`}
+          >
+            <p className="text-sm leading-relaxed">{message.content}</p>
           </div>
         )}
-        <div
-          className={`px-4 py-3 rounded-2xl shadow-sm ${
-            isMe
-              ? 'bg-indigo-600 text-white rounded-tr-none'
-              : 'bg-white text-gray-900 border border-gray-100 rounded-tl-none'
-          }`}
-        >
-          <p className="text-sm leading-relaxed">{message.content}</p>
-        </div>
+
         <span className="text-[10px] text-gray-400 mt-1 mx-1">
           {message.created_at?.toDate ? new Date(message.created_at.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}
         </span>

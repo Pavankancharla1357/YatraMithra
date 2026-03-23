@@ -1,19 +1,71 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { User, MapPin, Mail, Shield, Star, ChevronLeft, Plane, MessageSquare, Instagram, Linkedin, Twitter, Globe, Camera } from 'lucide-react';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { User, MapPin, Mail, Shield, Star, ChevronLeft, Plane, MessageSquare, Instagram, Linkedin, Twitter, Globe, Camera, Send, Users, Calendar } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useAuth } from '../../components/Auth/AuthContext';
 import { TripCard } from '../../components/Trips/TripCard';
 import { ReviewSystem } from '../../components/Profile/ReviewSystem';
+import { orderBy } from 'firebase/firestore';
 
 export const UserProfile: React.FC = () => {
   const { uid } = useParams<{ uid: string }>();
   const navigate = useNavigate();
+  const { user, profile: currentUserProfile } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [trips, setTrips] = useState<any[]>([]);
+  const [buddyPosts, setBuddyPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'about' | 'trips' | 'reviews'>('about');
+  const [activeTab, setActiveTab] = useState<'about' | 'trips' | 'reviews' | 'buddy'>('about');
+  const [messaging, setMessaging] = useState(false);
+
+  const handleMessage = async () => {
+    if (!user || !uid || user.uid === uid) return;
+
+    setMessaging(true);
+    try {
+      // Check if a direct channel already exists
+      const q = query(
+        collection(db, 'channels'),
+        where('type', '==', 'direct'),
+        where('participants', 'array-contains', user.uid)
+      );
+      
+      const snapshot = await getDocs(q);
+      let existingChannel = snapshot.docs.find(doc => 
+        doc.data().participants.includes(uid)
+      );
+
+      if (existingChannel) {
+        navigate(`/messages/${existingChannel.id}`);
+      } else {
+        // Create new channel
+        const newChannelRef = await addDoc(collection(db, 'channels'), {
+          type: 'direct',
+          participants: [user.uid, uid],
+          last_message_time: serverTimestamp(),
+          last_message: `Started a conversation with ${profile.name}`
+        });
+        
+        // Send initial system message
+        await addDoc(collection(db, 'messages'), {
+          channel_id: newChannelRef.id,
+          sender_id: 'system',
+          sender_name: 'WanderMatch Bot',
+          content: `👋 Hi! ${currentUserProfile?.name || 'Someone'} started a conversation with you.`,
+          message_type: 'system',
+          created_at: serverTimestamp()
+        });
+
+        navigate(`/messages/${newChannelRef.id}`);
+      }
+    } catch (error) {
+      console.error('Error initiating chat:', error);
+    } finally {
+      setMessaging(false);
+    }
+  };
 
   useEffect(() => {
     if (!uid) return;
@@ -28,6 +80,11 @@ export const UserProfile: React.FC = () => {
           const tripsQ = query(collection(db, 'trips'), where('organizer_id', '==', uid));
           const tripsSnapshot = await getDocs(tripsQ);
           setTrips(tripsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+          // Fetch buddy posts by this user
+          const buddyQ = query(collection(db, 'buddy_posts'), where('user_id', '==', uid), orderBy('created_at', 'desc'));
+          const buddySnapshot = await getDocs(buddyQ);
+          setBuddyPosts(buddySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         }
       } catch (error) {
         console.error('Error fetching user profile:', error);
@@ -121,6 +178,16 @@ export const UserProfile: React.FC = () => {
                   <MapPin className="w-4 h-4 mr-1 text-indigo-600" />
                   <span>{profile.location_city}, {profile.location_country}</span>
                 </div>
+                {user && user.uid !== uid && (
+                  <button
+                    onClick={handleMessage}
+                    disabled={messaging}
+                    className="mt-4 flex items-center space-x-2 px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>{messaging ? 'Connecting...' : 'Message'}</span>
+                  </button>
+                )}
               </div>
               <div className="flex items-center space-x-8">
                 <div className="text-center">
@@ -251,6 +318,17 @@ export const UserProfile: React.FC = () => {
                 <Star className="w-5 h-5" />
                 <span>Reviews</span>
               </button>
+              <button
+                onClick={() => setActiveTab('buddy')}
+                className={`px-8 py-4 rounded-2xl font-bold flex items-center space-x-2 transition-all shadow-xl ${
+                  activeTab === 'buddy' 
+                    ? 'bg-indigo-600 text-white shadow-indigo-100' 
+                    : 'bg-white text-gray-500 hover:bg-gray-50 shadow-gray-200/50'
+                }`}
+              >
+                <Users className="w-5 h-5" />
+                <span>Buddy Posts</span>
+              </button>
             </div>
 
             {activeTab === 'about' ? (
@@ -273,6 +351,38 @@ export const UserProfile: React.FC = () => {
                   <div className="text-center py-12 bg-white rounded-[2.5rem] border border-dashed border-gray-200">
                     <Plane className="w-12 h-12 text-gray-100 mx-auto mb-4" />
                     <p className="text-sm text-gray-400">No trips organized yet.</p>
+                  </div>
+                )}
+              </div>
+            ) : activeTab === 'buddy' ? (
+              <div className="space-y-6">
+                <h3 className="text-xl font-bold text-gray-900 px-2">Buddy Requests</h3>
+                {buddyPosts.length > 0 ? (
+                  <div className="space-y-6">
+                    {buddyPosts.map(post => (
+                      <div key={post.id} className="bg-white p-8 rounded-[2.5rem] shadow-lg shadow-gray-200/50 border border-gray-100">
+                        <p className="text-gray-700 leading-relaxed mb-4 font-medium">{post.content}</p>
+                        <div className="flex flex-wrap gap-4">
+                          {post.location && (
+                            <div className="flex items-center text-xs font-bold text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full">
+                              <MapPin className="w-3 h-3 mr-1.5 text-indigo-500" />
+                              {post.location}
+                            </div>
+                          )}
+                          {post.dates && (
+                            <div className="flex items-center text-xs font-bold text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full">
+                              <Calendar className="w-3 h-3 mr-1.5 text-indigo-500" />
+                              {post.dates}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 bg-white rounded-[2.5rem] border border-dashed border-gray-200">
+                    <Users className="w-12 h-12 text-gray-100 mx-auto mb-4" />
+                    <p className="text-sm text-gray-400">No buddy requests yet.</p>
                   </div>
                 )}
               </div>

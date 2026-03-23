@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../Auth/AuthContext';
-import { auth } from '../../firebase';
+import { auth, db } from '../../firebase';
 import { signOut } from 'firebase/auth';
-import { Compass, MessageSquare, User, LogOut, Menu, X, AlertCircle, Megaphone } from 'lucide-react';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { Compass, MessageSquare, User, LogOut, Menu, X, AlertCircle, Users } from 'lucide-react';
 import { NotificationBell } from '../Notifications/NotificationBell';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -12,6 +13,24 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = React.useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(
+      collection(db, 'notifications'),
+      where('user_id', '==', user.uid),
+      where('type', '==', 'new_message'),
+      where('is_read', '==', false)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setHasUnreadMessages(!snapshot.empty);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -35,16 +54,19 @@ export const Navbar: React.FC = () => {
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-8">
             <Link to="/discover" className="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Discover</Link>
-            <Link to="/feed" className="text-gray-600 hover:text-indigo-600 font-medium transition-colors flex items-center">
-              <Megaphone className="w-4 h-4 mr-1" />
-              Feed
+            <Link to="/buddy-finder" className="text-gray-600 hover:text-indigo-600 font-medium transition-colors flex items-center">
+              <Users className="w-4 h-4 mr-1" />
+              Buddy Finder
             </Link>
             {user ? (
               <>
                 <Link to="/dashboard" className="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Dashboard</Link>
-                <Link to="/messages" className="text-gray-600 hover:text-indigo-600 font-medium transition-colors flex items-center">
+                <Link to="/messages" className="text-gray-600 hover:text-indigo-600 font-medium transition-colors flex items-center relative">
                   <MessageSquare className="w-4 h-4 mr-1" />
                   Messages
+                  {hasUnreadMessages && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 border border-white rounded-full" />
+                  )}
                 </Link>
                 <NotificationBell />
                 <Link to="/profile" className="flex items-center space-x-2 bg-gray-50 px-3 py-1.5 rounded-full hover:bg-gray-100 transition-colors">
@@ -86,12 +108,17 @@ export const Navbar: React.FC = () => {
       {isOpen && (
         <div className="md:hidden bg-white border-t border-gray-100 px-4 pt-2 pb-6 space-y-4 shadow-lg">
           <Link to="/discover" className="block text-gray-600 font-medium py-2">Discover</Link>
-          <Link to="/feed" className="block text-gray-600 font-medium py-2">Feed</Link>
+          <Link to="/buddy-finder" className="block text-gray-600 font-medium py-2">Buddy Finder</Link>
           {user ? (
             <>
               <Link to="/dashboard" className="block text-gray-600 font-medium py-2">Dashboard</Link>
               <Link to="/notifications" className="block text-gray-600 font-medium py-2">Notifications</Link>
-              <Link to="/messages" className="block text-gray-600 font-medium py-2">Messages</Link>
+              <Link to="/messages" className="block text-gray-600 font-medium py-2 relative inline-flex items-center">
+                Messages
+                {hasUnreadMessages && (
+                  <span className="ml-1 w-2 h-2 bg-red-500 rounded-full" />
+                )}
+              </Link>
               <Link to="/profile" className="block text-gray-600 font-medium py-2">Profile</Link>
               <button 
                 onClick={() => setShowLogoutConfirm(true)}
