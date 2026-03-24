@@ -41,6 +41,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 import { Toaster } from 'sonner';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useEffect } from 'react';
+import { setupPushNotifications } from './services/mobilePushService';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -53,6 +54,10 @@ const ScrollToTop = () => {
 };
 
 export default function App() {
+  useEffect(() => {
+    setupPushNotifications().catch(err => console.error('Push notification setup failed:', err));
+  }, []);
+
   return (
     <ErrorBoundary>
       <AuthProvider>
