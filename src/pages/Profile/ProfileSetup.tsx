@@ -13,6 +13,7 @@ export const ProfileSetup: React.FC = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
+    name: profile?.name || user?.displayName || '',
     age: profile?.age?.toString() || '',
     location_city: profile?.location_city || '',
     location_country: profile?.location_country || '',
@@ -35,6 +36,7 @@ export const ProfileSetup: React.FC = () => {
 
       setFormData(prev => ({
         ...prev,
+        name: profile.name || prev.name,
         age: profile.age?.toString() || prev.age,
         location_city: profile.location_city || prev.location_city,
         location_country: profile.location_country || prev.location_country,
@@ -155,7 +157,6 @@ export const ProfileSetup: React.FC = () => {
         ...formData,
         uid: user.uid,
         email: user.email,
-        name: profile?.name || user.displayName || 'New User',
         age: parseInt(formData.age) || 0,
         updated_at: new Date().toISOString(),
         reputation_score: profile?.reputation_score || 0,
@@ -206,6 +207,17 @@ export const ProfileSetup: React.FC = () => {
               <h2 className="text-2xl font-bold text-gray-900">Basic Info</h2>
               <p className="text-gray-500">Let's start with the basics to help others know you better.</p>
               
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                  placeholder="John Doe"
+                />
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
                 <input

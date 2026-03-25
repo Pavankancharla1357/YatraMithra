@@ -69,6 +69,7 @@
         "day": { "type": "integer" },
         "votes": { "type": "array", "items": { "type": "string" } },
         "votes_count": { "type": "integer" },
+        "type": { "type": "string", "enum": ["activity", "dining", "transport", "lodging", "other"] },
         "created_by": { "type": "string" },
         "created_by_name": { "type": "string" },
         "status": { "type": "string" },
@@ -184,14 +185,43 @@
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["user_id", "type", "title", "body"]
+    },
+    "SafetyContact": {
+      "title": "Safety Contact",
+      "description": "Emergency contact for a user",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "name": { "type": "string" },
+        "relationship": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "name", "phone"]
+    },
+    "UserLocation": {
+      "title": "User Location",
+      "description": "Real-time location of a user during a trip",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "trip_id": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "trip_id", "latitude", "longitude"]
     }
   },
   "firestore": {
     "/users/{userId}": { "schema": "User", "description": "User profiles" },
+    "/users/{userId}/safety_contacts/{contactId}": { "schema": "SafetyContact", "description": "User emergency contacts" },
     "/trips/{tripId}": { "schema": "Trip", "description": "Trips" },
     "/trips/{tripId}/members/{memberId}": { "schema": "TripMember", "description": "Trip members" },
     "/trips/{tripId}/expenses/{expenseId}": { "schema": "Expense", "description": "Trip expenses" },
     "/trips/{tripId}/itinerary/{itemId}": { "schema": "ItineraryItem", "description": "Trip itinerary items" },
+    "/trips/{tripId}/locations/{userId}": { "schema": "UserLocation", "description": "Real-time locations of trip members" },
     "/reviews/{reviewId}": { "schema": "Review", "description": "User reviews" },
     "/buddy_posts/{postId}": { "schema": "BuddyPost", "description": "Travel buddy posts" },
     "/channels/{channelId}": { "schema": "Channel", "description": "Chat channels" },

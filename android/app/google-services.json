@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "556377461123",
+    "project_id": "ai-studio-applet-webapp-aae99",
+    "storage_bucket": "ai-studio-applet-webapp-aae99.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:556377461123:android:a292280a907b4183c666b6",
+        "android_client_info": {
+          "package_name": "com.wandermatch.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "556377461123-ntbc8rjdehoficqb85i0bstdrmvc7clm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbSZDZbqbfbHBC9Qhc7MwKju1jtwNtMJc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "556377461123-ntbc8rjdehoficqb85i0bstdrmvc7clm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

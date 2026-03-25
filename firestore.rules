@@ -96,6 +96,10 @@ service cloud.firestore {
       allow create: if isOwner(userId) && request.resource.data.uid == request.auth.uid;
       allow update: if (isOwner(userId) && uidNotModified()) || 
                       (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reputation_score']));
+
+      match /safety_contacts/{contactId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     match /trips/{tripId} {
@@ -112,6 +116,15 @@ service cloud.firestore {
       );
       
       allow delete: if isAuthenticated() && (request.auth.uid == resource.data.organizer_id || isAdmin());
+
+      match /locations/{userId} {
+        allow read: if isAuthenticated() && (
+          request.auth.uid == userId ||
+          exists(/databases/$(database)/documents/trips/$(tripId)/members/$(request.auth.uid)) ||
+          request.auth.uid == get(/databases/$(database)/documents/trips/$(tripId)).data.organizer_id
+        );
+        allow write: if isOwner(userId);
+      }
 
       match /members/{memberId} {
         allow read: if isAuthenticated();
@@ -140,7 +153,13 @@ service cloud.firestore {
       match /itinerary/{itemId} {
         allow read: if isAuthenticated();
         allow create: if isAuthenticated();
-        allow update: if isAuthenticated();
+        allow update: if isAuthenticated() && (
+          // Allow voting
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes', 'votes_count'])) ||
+          // Allow creator or organizer to edit
+          (request.auth.uid == resource.data.created_by || request.auth.uid == get(/databases/$(database)/documents/trips/$(tripId)).data.organizer_id) ||
+          isAdmin()
+        );
         allow delete: if isAuthenticated() && (
           request.auth.uid == get(/databases/$(database)/documents/trips/$(tripId)).data.organizer_id ||
           request.auth.uid == resource.data.created_by ||

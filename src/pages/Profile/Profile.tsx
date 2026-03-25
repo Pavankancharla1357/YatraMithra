@@ -44,13 +44,16 @@ export const Profile: React.FC = () => {
     location_city: profile?.location_city || '',
     location_country: profile?.location_country || '',
     gender: profile?.gender || 'prefer_not_to_say',
+    age: profile?.age || '',
+    travel_style: profile?.travel_style || 'mid_range',
     phone_number: '',
     social_links: {
       instagram: profile?.social_links?.instagram || '',
       linkedin: profile?.social_links?.linkedin || '',
       twitter: profile?.social_links?.twitter || '',
       website: profile?.social_links?.website || '',
-    }
+    },
+    interests: profile?.interests || [] as string[]
   });
 
   // Cropping state
@@ -75,13 +78,16 @@ export const Profile: React.FC = () => {
         location_city: profile.location_city || '',
         location_country: profile.location_country || '',
         gender: profile.gender || 'prefer_not_to_say',
+        age: profile.age || '',
+        travel_style: profile.travel_style || 'mid_range',
         phone_number: displayPhone,
         social_links: {
           instagram: profile.social_links?.instagram || '',
           linkedin: profile.social_links?.linkedin || '',
           twitter: profile.social_links?.twitter || '',
           website: profile.social_links?.website || '',
-        }
+        },
+        interests: profile.interests || []
       });
     }
   }, [profile]);
@@ -233,6 +239,7 @@ export const Profile: React.FC = () => {
     try {
       await setDoc(doc(db, 'users', user.uid), {
         ...formData,
+        age: parseInt(formData.age.toString()) || 0,
         updated_at: new Date().toISOString(),
       }, { merge: true });
       await refreshProfile();
@@ -241,6 +248,17 @@ export const Profile: React.FC = () => {
       handleFirestoreError(error, OperationType.WRITE, path);
     }
   };
+
+  const toggleInterest = (interest: string) => {
+    setFormData(prev => ({
+      ...prev,
+      interests: prev.interests.includes(interest)
+        ? prev.interests.filter(i => i !== interest)
+        : [...prev.interests, interest]
+    }));
+  };
+
+  const interestsList = ['Nature', 'Food', 'History', 'Adventure', 'Nightlife', 'Culture', 'Photography', 'Hiking', 'Beach', 'Shopping'];
 
   const startPhoneVerification = async () => {
     if (!formData.phone_number || formData.phone_number.length !== 10) {
@@ -545,6 +563,42 @@ export const Profile: React.FC = () => {
                     profile.social_links?.linkedin ? 'text-gray-400 group-hover:text-blue-600' : 'text-gray-300'
                   }`}>LinkedIn</span>
                 </a>
+                <a 
+                  href={formatSocialLink(profile.social_links?.twitter, 'twitter')} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className={`flex flex-col items-center p-4 rounded-xl transition-all group border border-transparent ${
+                    profile.social_links?.twitter 
+                      ? 'bg-gray-50 hover:bg-sky-50 hover:border-sky-100' 
+                      : 'bg-gray-50/50 cursor-not-allowed opacity-50'
+                  }`}
+                  onClick={(e) => !profile.social_links?.twitter && e.preventDefault()}
+                >
+                  <Twitter className={`w-5 h-5 mb-2 transition-colors ${
+                    profile.social_links?.twitter ? 'text-gray-400 group-hover:text-sky-500' : 'text-gray-300'
+                  }`} />
+                  <span className={`text-[9px] font-black uppercase tracking-widest ${
+                    profile.social_links?.twitter ? 'text-gray-400 group-hover:text-sky-600' : 'text-gray-300'
+                  }`}>Twitter</span>
+                </a>
+                <a 
+                  href={profile.social_links?.website?.startsWith('http') ? profile.social_links.website : `https://${profile.social_links?.website}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className={`flex flex-col items-center p-4 rounded-xl transition-all group border border-transparent ${
+                    profile.social_links?.website 
+                      ? 'bg-gray-50 hover:bg-emerald-50 hover:border-emerald-100' 
+                      : 'bg-gray-50/50 cursor-not-allowed opacity-50'
+                  }`}
+                  onClick={(e) => !profile.social_links?.website && e.preventDefault()}
+                >
+                  <Globe className={`w-5 h-5 mb-2 transition-colors ${
+                    profile.social_links?.website ? 'text-gray-400 group-hover:text-emerald-600' : 'text-gray-300'
+                  }`} />
+                  <span className={`text-[9px] font-black uppercase tracking-widest ${
+                    profile.social_links?.website ? 'text-gray-400 group-hover:text-emerald-600' : 'text-gray-300'
+                  }`}>Website</span>
+                </a>
               </div>
             </div>
           </div>
@@ -626,6 +680,48 @@ export const Profile: React.FC = () => {
                             </select>
                           </div>
                         </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Age</label>
+                          <div className="relative">
+                            <User className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                            <input
+                              type="number"
+                              value={formData.age}
+                              onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                              className="w-full pl-12 pr-6 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-50 outline-none font-bold text-sm text-gray-900 transition-all"
+                              placeholder="e.g. 25"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">City</label>
+                          <div className="relative">
+                            <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                            <input
+                              type="text"
+                              value={formData.location_city}
+                              onChange={(e) => setFormData({ ...formData, location_city: e.target.value })}
+                              className="w-full pl-12 pr-6 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-50 outline-none font-bold text-sm text-gray-900 transition-all"
+                              placeholder="e.g. Mumbai"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Country</label>
+                          <div className="relative">
+                            <Globe className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                            <input
+                              type="text"
+                              value={formData.location_country}
+                              onChange={(e) => setFormData({ ...formData, location_country: e.target.value })}
+                              className="w-full pl-12 pr-6 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-50 outline-none font-bold text-sm text-gray-900 transition-all"
+                              placeholder="e.g. India"
+                            />
+                          </div>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Bio</label>
@@ -639,6 +735,22 @@ export const Profile: React.FC = () => {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Travel Style</label>
+                          <div className="relative">
+                            <Plane className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                            <select
+                              value={formData.travel_style}
+                              onChange={(e) => setFormData({ ...formData, travel_style: e.target.value })}
+                              className="w-full pl-12 pr-10 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-50 outline-none font-bold text-sm text-gray-900 appearance-none transition-all cursor-pointer"
+                            >
+                              <option value="budget">Budget</option>
+                              <option value="mid_range">Mid Range</option>
+                              <option value="luxury">Luxury</option>
+                              <option value="backpacking">Backpacking</option>
+                            </select>
+                          </div>
+                        </div>
                         <div className="space-y-2">
                           <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Instagram Username</label>
                           <div className="relative">
@@ -672,6 +784,123 @@ export const Profile: React.FC = () => {
                           </div>
                         </div>
                       </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Twitter Username</label>
+                          <div className="relative">
+                            <Twitter className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                            <input
+                              type="text"
+                              value={formData.social_links.twitter}
+                              onChange={(e) => setFormData({ 
+                                ...formData, 
+                                social_links: { ...formData.social_links, twitter: e.target.value } 
+                              })}
+                              className="w-full pl-12 pr-6 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-50 outline-none font-bold text-sm text-gray-900 transition-all"
+                              placeholder="@username"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Personal Website</label>
+                          <div className="relative">
+                            <Globe className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                            <input
+                              type="text"
+                              value={formData.social_links.website}
+                              onChange={(e) => setFormData({ 
+                                ...formData, 
+                                social_links: { ...formData.social_links, website: e.target.value } 
+                              })}
+                              className="w-full pl-12 pr-6 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-50 outline-none font-bold text-sm text-gray-900 transition-all"
+                              placeholder="https://yourwebsite.com"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Interests</label>
+                        <div className="flex flex-wrap gap-2 p-4 bg-gray-50 rounded-2xl border-2 border-transparent">
+                          {interestsList.map((interest) => (
+                            <button
+                              key={interest}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                toggleInterest(interest);
+                              }}
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${
+                                formData.interests.includes(interest)
+                                  ? 'bg-indigo-600 text-white border-indigo-600'
+                                  : 'bg-white text-gray-400 border-gray-100 hover:border-indigo-100 hover:text-indigo-600'
+                              }`}
+                            >
+                              {interest}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-8">
+                      <div className="flex flex-wrap gap-4">
+                        <div className="flex items-center space-x-2 bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">
+                          <User className="w-4 h-4 text-indigo-600" />
+                          <span className="text-sm font-bold text-gray-700">{profile.age || 'Age not set'} years old</span>
+                        </div>
+                        <div className="flex items-center space-x-2 bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">
+                          <Plane className="w-4 h-4 text-violet-600" />
+                          <span className="text-sm font-bold text-gray-700 capitalize">{profile.travel_style?.replace('_', ' ') || 'Style not set'}</span>
+                        </div>
+                      </div>
+                      <p className="text-gray-600 leading-relaxed font-medium text-base sm:text-lg italic">
+                        "{profile.bio || 'No bio yet. Tell us about your travel adventures!'}"
+                      </p>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Phone Number</label>
+                        <div className="flex gap-4">
+                          <div className="relative flex-1">
+                            <div className="absolute left-5 top-1/2 -translate-y-1/2 flex items-center space-x-2">
+                              <span className="text-sm font-black text-gray-400">+91</span>
+                            </div>
+                            <input
+                              type="tel"
+                              maxLength={10}
+                              disabled={profile.is_phone_verified}
+                              value={formData.phone_number}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, '');
+                                setFormData({ ...formData, phone_number: val });
+                              }}
+                              className={`w-full pl-16 pr-6 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl outline-none font-bold text-sm transition-all ${
+                                profile.is_phone_verified 
+                                  ? 'text-emerald-600 bg-emerald-50/20 cursor-not-allowed' 
+                                  : 'text-gray-900 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-50'
+                              }`}
+                              placeholder="00000 00000"
+                            />
+                            {profile.is_phone_verified && (
+                              <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center space-x-1 text-emerald-500">
+                                <Check className="w-4 h-4" strokeWidth={3} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Verified</span>
+                              </div>
+                            )}
+                          </div>
+                          {!profile.is_phone_verified && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setActiveTab('security');
+                              }}
+                              className="px-6 py-3.5 bg-indigo-50 text-indigo-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-100 transition-all border border-indigo-100"
+                            >
+                              Verify
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
                       <button
                         onClick={handleUpdate}
                         className="w-full py-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl font-black text-sm hover:shadow-lg transition-all transform hover:-translate-y-0.5"

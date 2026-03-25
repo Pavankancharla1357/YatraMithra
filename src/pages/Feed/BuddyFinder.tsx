@@ -33,28 +33,44 @@ export const BuddyFinder: React.FC = () => {
 
   useEffect(() => {
     const q = query(collection(db, 'buddy_posts'), orderBy('created_at', 'desc'));
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const newPosts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BuddyPost));
       setPosts(newPosts);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'buddy_posts');
+    });
+    return () => unsubscribe();
+  }, []);
 
-      // Fetch profiles for users we don't have yet
-      const uniqueUserIds = Array.from(new Set(newPosts.map(p => p.user_id)));
+  useEffect(() => {
+    const fetchMissingProfiles = async () => {
+      if (posts.length === 0) return;
+      
+      const uniqueUserIds = Array.from(new Set(posts.map(p => p.user_id)));
       const missingIds = uniqueUserIds.filter(id => !userProfiles[id]);
 
       if (missingIds.length > 0) {
-        // Fetch missing profiles
-        const profiles: Record<string, any> = { ...userProfiles };
-        await Promise.all(missingIds.map(async (uid) => {
-          const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', uid)));
-          if (!userDoc.empty) {
-            profiles[uid] = userDoc.docs[0].data();
+        const profilesToFetch = [...missingIds];
+        const newProfiles: Record<string, any> = {};
+        
+        await Promise.all(profilesToFetch.map(async (uid) => {
+          try {
+            const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', uid)));
+            if (!userDoc.empty) {
+              newProfiles[uid] = userDoc.docs[0].data();
+            }
+          } catch (err) {
+            console.error(`Error fetching profile for ${uid}:`, err);
           }
         }));
-        setUserProfiles(profiles);
+
+        if (Object.keys(newProfiles).length > 0) {
+          setUserProfiles(prev => ({ ...prev, ...newProfiles }));
+        }
       }
-    });
-    return () => unsubscribe();
-  }, [userProfiles]);
+    };
+    fetchMissingProfiles();
+  }, [posts]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,7 +128,7 @@ export const BuddyFinder: React.FC = () => {
         await addDoc(collection(db, 'messages'), {
           channel_id: newChannelRef.id,
           sender_id: 'system',
-          sender_name: 'WanderMatch Bot',
+          sender_name: 'TripTribe Bot',
           content: `👋 Hi! ${profile?.name || 'Someone'} is interested in your buddy post: "${post.content.substring(0, 50)}..."`,
           message_type: 'system',
           created_at: serverTimestamp()

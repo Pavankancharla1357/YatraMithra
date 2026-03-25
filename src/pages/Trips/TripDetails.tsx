@@ -167,7 +167,7 @@ export const TripDetails: React.FC = () => {
         await addDoc(collection(db, 'messages'), {
           channel_id: newChannelRef.id,
           sender_id: 'system',
-          sender_name: 'WanderMatch Bot',
+          sender_name: 'TripTribe Bot',
           content: `👋 Hi! ${currentUserProfile?.name || 'Someone'} is interested in your trip to ${trip.destination_city} and started a conversation.`,
           message_type: 'system',
           created_at: serverTimestamp()
@@ -346,45 +346,82 @@ export const TripDetails: React.FC = () => {
     if (!id) return;
 
     const fetchTripData = async () => {
+      setLoading(true);
       try {
-        // Parallel fetch trip and all members list
-        const [tripDoc, membersSnapshot] = await Promise.all([
-          getDoc(doc(db, 'trips', id)),
-          getDocs(query(collection(db, 'trip_members'), where('trip_id', '==', id)))
-        ]);
+        const tripRef = doc(db, 'trips', id);
+        const tripSnap = await getDoc(tripRef);
 
-        if (tripDoc.exists()) {
-          const tripData: any = { id: tripDoc.id, ...tripDoc.data() };
-          setTrip(tripData);
-
-          // Check current user's membership status from the fetched list
-          if (user) {
-            const currentUserMember = membersSnapshot.docs.find(d => d.data().user_id === user.uid);
-            if (currentUserMember) {
-              setMemberStatus(currentUserMember.data().status);
-            }
-          }
-
-          // Get approved member UIDs
-          const approvedMemberUids = membersSnapshot.docs
-            .filter(d => d.data().status === 'approved')
-            .map(d => d.data().user_id);
-
-          // Parallel fetch organizer profile and all approved member profiles
-          const [orgDoc, ...memberProfileDocs] = await Promise.all([
-            getDoc(doc(db, 'users', tripData.organizer_id)),
-            ...approvedMemberUids.map(uid => getDoc(doc(db, 'users', uid)))
-          ]);
-
-          if (orgDoc.exists()) {
-            setOrganizer(orgDoc.data());
-          }
-
-          setMembers(memberProfileDocs
-            .filter(p => p.exists())
-            .map(p => ({ uid: p.id, ...p.data() }))
-          );
+        if (!tripSnap.exists()) {
+          setTrip(null);
+          setLoading(false);
+          return;
         }
+
+        const tripData = { id: tripSnap.id, ...tripSnap.data() } as any;
+        setTrip(tripData);
+
+        // Fetch all members for this trip
+        const membersQuery = query(collection(db, 'trip_members'), where('trip_id', '==', id));
+        const membersSnap = await getDocs(membersQuery);
+        
+        // Set current user's membership status
+        if (user) {
+          const myMemberDoc = membersSnap.docs.find(d => d.data().user_id === user.uid);
+          if (myMemberDoc) {
+            setMemberStatus(myMemberDoc.data().status);
+          }
+        }
+
+        // Identify approved members (excluding organizer for now to handle separately)
+        const approvedMemberIds = membersSnap.docs
+          .filter(d => d.data().status === 'approved' && d.data().user_id !== tripData.organizer_id)
+          .map(d => d.data().user_id);
+
+        // Fetch profiles in parallel
+        const profilePromises = [
+          getDoc(doc(db, 'users', tripData.organizer_id)),
+          ...approvedMemberIds.map(uid => getDoc(doc(db, 'users', uid)))
+        ];
+
+        const profileSnaps = await Promise.all(profilePromises);
+        
+        const allMembers: any[] = [];
+        
+        // Handle Organizer (first in profileSnaps)
+        const orgSnap = profileSnaps[0];
+        let organizerData: any;
+        if (orgSnap.exists()) {
+          organizerData = { uid: orgSnap.id, ...orgSnap.data(), isOrganizer: true };
+        } else {
+          // Fallback to trip data if user profile is missing
+          organizerData = {
+            uid: tripData.organizer_id,
+            name: tripData.organizer_name || 'Organizer',
+            photo_url: tripData.organizer_photo_url,
+            is_verified: tripData.organizer_verified || false,
+            isOrganizer: true
+          };
+        }
+        setOrganizer(organizerData);
+        allMembers.push(organizerData);
+
+        // Handle other members
+        for (let i = 1; i < profileSnaps.length; i++) {
+          const pSnap = profileSnaps[i];
+          if (pSnap.exists()) {
+            allMembers.push({ uid: pSnap.id, ...pSnap.data() });
+          } else {
+            allMembers.push({
+              uid: approvedMemberIds[i-1],
+              name: 'Traveler',
+              photo_url: null,
+              is_verified: false
+            });
+          }
+        }
+
+        setMembers(allMembers);
+
       } catch (error) {
         console.error('Error fetching trip details:', error);
       } finally {
