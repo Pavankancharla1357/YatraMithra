@@ -128,7 +128,7 @@ export const BuddyFinder: React.FC = () => {
         await addDoc(collection(db, 'messages'), {
           channel_id: newChannelRef.id,
           sender_id: 'system',
-          sender_name: 'TripTribe Bot',
+          sender_name: 'WanderMatch Bot',
           content: `👋 Hi! ${profile?.name || 'Someone'} is interested in your buddy post: "${post.content.substring(0, 50)}..."`,
           message_type: 'system',
           created_at: serverTimestamp()

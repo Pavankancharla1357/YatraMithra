@@ -59,7 +59,7 @@ export const ChatRoom: React.FC = () => {
       await addDoc(collection(db, 'messages'), {
         channel_id: channelId,
         sender_id: 'system',
-        sender_name: 'TripTribe Bot',
+        sender_name: 'WanderMatch Bot',
         content: `🧊 ICEBREAKER: ${randomIcebreaker}`,
         message_type: 'system',
         created_at: serverTimestamp(),
@@ -75,7 +75,7 @@ export const ChatRoom: React.FC = () => {
       await addDoc(collection(db, 'messages'), {
         channel_id: channelId,
         sender_id: 'system',
-        sender_name: 'TripTribe Bot',
+        sender_name: 'WanderMatch Bot',
         content: `📅 MEETUP PROPOSAL: Let's schedule a quick video call to get to know each other! How about this weekend?`,
         message_type: 'system',
         created_at: serverTimestamp(),

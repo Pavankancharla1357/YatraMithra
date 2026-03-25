@@ -1,5 +1,5 @@
 {
-  "name": "TripTribe",
+  "name": "WanderMatch",
   "description": "A travel companion matching platform connecting solo travelers with compatible partners through AI-based matching and real-time group coordination.",
   "requestFramePermissions": ["camera", "geolocation"]
 }

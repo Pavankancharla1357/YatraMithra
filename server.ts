@@ -21,7 +21,7 @@ async function startServer() {
 
   // API Routes
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", message: "TripTribe API is healthy" });
+    res.json({ status: "ok", message: "WanderMatch API is healthy" });
   });
 
   // Auth & User API placeholders (to be expanded)

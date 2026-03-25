@@ -167,7 +167,7 @@ export const TripDetails: React.FC = () => {
         await addDoc(collection(db, 'messages'), {
           channel_id: newChannelRef.id,
           sender_id: 'system',
-          sender_name: 'TripTribe Bot',
+          sender_name: 'WanderMatch Bot',
           content: `👋 Hi! ${currentUserProfile?.name || 'Someone'} is interested in your trip to ${trip.destination_city} and started a conversation.`,
           message_type: 'system',
           created_at: serverTimestamp()

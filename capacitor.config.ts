@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.triptribe.app',
-  appName: 'TripTribe',
+  appId: 'com.wandermatch.app',
+  appName: 'WanderMatch',
   webDir: 'dist',
   plugins: {
     SplashScreen: {
