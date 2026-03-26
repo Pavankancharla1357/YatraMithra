@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../components/Auth/AuthContext';
 import { createNotification } from '../../services/notificationService';
 import { X, Send, Info, Heart } from 'lucide-react';
@@ -27,7 +27,7 @@ export const JoinRequestModal: React.FC<JoinRequestModalProps> = ({ trip, onClos
 
     setLoading(true);
     try {
-      await addDoc(collection(db, 'trip_members'), {
+      await setDoc(doc(db, 'trip_members', `${user.uid}_${trip.id}`), {
         trip_id: trip.id,
         user_id: user.uid,
         user_name: profile?.name || user.displayName || 'Traveler',

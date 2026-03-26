@@ -17,6 +17,7 @@ import { Dashboard } from './pages/Dashboard/Dashboard';
 import { DiscoverTrips } from './pages/Trips/DiscoverTrips';
 import { CreateTrip } from './pages/Trips/CreateTrip';
 import { TripDetails } from './pages/Trips/TripDetails';
+import { JoinTrip } from './pages/Trips/JoinTrip';
 import { TripExpenses } from './pages/Trips/TripExpenses';
 import { ChatList } from './pages/Messages/ChatList';
 import { ChatRoom } from './pages/Messages/ChatRoom';
@@ -147,6 +148,7 @@ export default function App() {
                 } 
               />
               <Route path="/trips/:id" element={<TripDetails />} />
+              <Route path="/join/:tripId/:inviteCode" element={<JoinTrip />} />
             </Routes>
           </div>
         </Router>

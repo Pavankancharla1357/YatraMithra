@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../../firebase';
 import { getAuthErrorMessage } from '../../utils/authErrorHandler';
@@ -12,6 +12,9 @@ export const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const from = location.state?.from || '/discover';
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +22,7 @@ export const Login: React.FC = () => {
     setError('');
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate('/discover');
+      navigate(from, { replace: true });
     } catch (err: any) {
       setError(getAuthErrorMessage(err.code) || err.message || 'Failed to login');
     } finally {
@@ -30,7 +33,7 @@ export const Login: React.FC = () => {
   const handleGoogleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-      navigate('/discover');
+      navigate(from, { replace: true });
     } catch (err: any) {
       setError(getAuthErrorMessage(err.code) || err.message || 'Failed to login with Google');
     }

@@ -2,19 +2,26 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../components/Auth/AuthContext';
 import { db } from '../../firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, setDoc, doc } from 'firebase/firestore';
 import { motion } from 'motion/react';
-import { MapPin, Calendar, Users, IndianRupee, Info, Plane, Briefcase } from 'lucide-react';
+import { MapPin, Calendar, Users, IndianRupee, Info, Plane, Briefcase, Search } from 'lucide-react';
 import { CustomSelect } from '../../components/UI/CustomSelect';
 import { CustomDatePicker } from '../../components/UI/CustomDatePicker';
+import { LocationAutocomplete } from '../../components/Trips/LocationAutocomplete';
+import { TripSettingsModal } from '../../components/Trips/TripSettingsModal';
+
+import { generateInviteCode } from '../../services/inviteService';
 
 export const CreateTrip: React.FC = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [formData, setFormData] = useState({
     destination_city: '',
     destination_country: 'India',
+    destination_lat: 0,
+    destination_lng: 0,
     start_date: '',
     end_date: '',
     budget_max: '',
@@ -25,6 +32,17 @@ export const CreateTrip: React.FC = () => {
     cover_image: '',
     trip_types: [] as string[],
     is_women_only: false,
+    status: 'open',
+    invite_code: generateInviteCode(),
+    settings: {
+      privacy: 'public' as 'public' | 'private',
+      show_exact_location: true,
+      notification_preferences: {
+        new_member: true,
+        new_message: true,
+        expense_update: true,
+      },
+    },
   });
 
   const tripTypeOptions = [
@@ -48,6 +66,14 @@ export const CreateTrip: React.FC = () => {
     { value: 'backpacking', label: 'Backpacking' },
   ];
 
+  const statusOptions = [
+    { value: 'open', label: 'Open' },
+    { value: 'full', label: 'Full' },
+    { value: 'ongoing', label: 'Ongoing' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'cancelled', label: 'Cancelled' },
+  ];
+
   const toggleTripType = (type: string) => {
     setFormData(prev => ({
       ...prev,
@@ -60,6 +86,12 @@ export const CreateTrip: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    
+    if (!formData.destination_city || formData.destination_lat === 0) {
+      alert('Please select a valid destination from the suggestions.');
+      return;
+    }
+
     setLoading(true);
     try {
       const docRef = await addDoc(collection(db, 'trips'), {
@@ -72,12 +104,12 @@ export const CreateTrip: React.FC = () => {
         budget_max: parseInt(formData.budget_max),
         max_members: parseInt(formData.max_members),
         current_members: 1,
-        status: 'open',
+        invite_count: 0,
         created_at: new Date().toISOString(),
       });
 
       // Add organizer as an approved member
-      await addDoc(collection(db, 'trip_members'), {
+      await setDoc(doc(db, 'trip_members', `${user.uid}_${docRef.id}`), {
         trip_id: docRef.id,
         user_id: user.uid,
         role: 'organizer',
@@ -107,30 +139,24 @@ export const CreateTrip: React.FC = () => {
           className="bg-white p-8 rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100"
         >
           <form onSubmit={handleSubmit} className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center">
-                  <MapPin className="w-4 h-4 mr-2 text-indigo-600" /> Destination City
+                  <MapPin className="w-4 h-4 mr-2 text-indigo-600" /> Destination
                 </label>
-                <input
-                  required
-                  type="text"
-                  value={formData.destination_city}
-                  onChange={(e) => setFormData({ ...formData, destination_city: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none hover:border-indigo-300 transition-all"
-                  placeholder="e.g. Manali"
+                <LocationAutocomplete
+                  onSelect={(location) => {
+                    setFormData({
+                      ...formData,
+                      destination_city: location.city || '',
+                      destination_country: location.country || 'India',
+                      destination_lat: location.lat,
+                      destination_lng: location.lng
+                    });
+                  }}
+                  placeholder="Where are you planning to go?"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Country</label>
-                <input
-                  required
-                  type="text"
-                  value={formData.destination_country}
-                  onChange={(e) => setFormData({ ...formData, destination_country: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none hover:border-indigo-300 transition-all"
-                  placeholder="e.g. India"
-                />
+                <p className="mt-2 text-xs text-gray-400">Search for a city or destination in India.</p>
               </div>
             </div>
 
@@ -180,6 +206,13 @@ export const CreateTrip: React.FC = () => {
                 value={formData.travel_style}
                 onChange={(val) => setFormData({ ...formData, travel_style: val })}
                 options={travelStyleOptions}
+              />
+              <CustomSelect
+                label="Trip Status"
+                icon={<Info className="w-4 h-4 text-indigo-600" />}
+                value={formData.status}
+                onChange={(val) => setFormData({ ...formData, status: val })}
+                options={statusOptions}
               />
             </div>
 
@@ -265,7 +298,15 @@ export const CreateTrip: React.FC = () => {
               <p className="mt-2 text-xs text-gray-400 italic">You can also provide this later from the trip details page.</p>
             </div>
 
-            <div className="pt-4">
+            <div className="pt-4 flex flex-col space-y-4">
+              <button
+                type="button"
+                onClick={() => setShowSettings(true)}
+                className="w-full py-4 bg-gray-50 text-gray-700 rounded-2xl font-bold text-lg hover:bg-gray-100 transition-all border border-gray-200 flex items-center justify-center"
+              >
+                <Briefcase className="w-5 h-5 mr-2 text-indigo-600" /> Trip Settings
+              </button>
+
               <button
                 type="submit"
                 disabled={loading}
@@ -280,6 +321,13 @@ export const CreateTrip: React.FC = () => {
             </div>
           </form>
         </motion.div>
+
+        <TripSettingsModal
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          settings={formData.settings}
+          onUpdate={(settings) => setFormData({ ...formData, settings })}
+        />
       </div>
     </div>
   );

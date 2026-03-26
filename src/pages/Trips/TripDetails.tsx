@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { db, auth } from '../../firebase';
 import { 
   doc, 
+  updateDoc, 
+  increment, 
   getDoc, 
   collection, 
   query, 
@@ -13,10 +15,13 @@ import {
   deleteDoc 
 } from 'firebase/firestore';
 import { useAuth } from '../../components/Auth/AuthContext';
+import { generateInviteCode } from '../../services/inviteService';
 import { JoinRequestModal } from '../../components/Trips/JoinRequestModal';
+import { ShareModal } from '../../components/Trips/ShareModal';
 import { EditTripModal } from '../../components/Trips/EditTripModal';
 import { DeleteTripModal } from '../../components/Trips/DeleteTripModal';
 import { ItineraryPlanner } from '../../components/Trips/ItineraryPlanner';
+import { TripMap } from '../../components/Trips/TripMap';
 import { 
   Calendar, 
   Users, 
@@ -34,7 +39,9 @@ import {
   LayoutGrid, 
   Map as MapIcon, 
   Heart,
-  AlertCircle
+  AlertCircle,
+  DollarSign,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -89,16 +96,20 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   throw new Error(JSON.stringify(errInfo));
 }
 
+import { subscribeToUserRating } from '../../services/reviewService';
+
 export const TripDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user, profile: currentUserProfile } = useAuth();
   const navigate = useNavigate();
   const [trip, setTrip] = useState<any>(null);
   const [organizer, setOrganizer] = useState<any>(null);
+  const [organizerRating, setOrganizerRating] = useState<{ averageRating: number; totalReviews: number }>({ averageRating: 0, totalReviews: 0 });
   const [members, setMembers] = useState<any[]>([]);
   const [memberStatus, setMemberStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'itinerary'>('overview');
@@ -343,6 +354,14 @@ export const TripDetails: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!trip?.organizer_id) return;
+    const unsubscribe = subscribeToUserRating(trip.organizer_id, (rating) => {
+      setOrganizerRating(rating);
+    });
+    return () => unsubscribe();
+  }, [trip?.organizer_id]);
+
+  useEffect(() => {
     if (!id) return;
 
     const fetchTripData = async () => {
@@ -358,6 +377,19 @@ export const TripDetails: React.FC = () => {
         }
 
         const tripData = { id: tripSnap.id, ...tripSnap.data() } as any;
+        
+        // Lazy backfill invite code if missing
+        const userIsOrganizer = user?.uid === tripData.organizer_id;
+        if (!tripData.invite_code && userIsOrganizer) {
+          const newCode = generateInviteCode();
+          await updateDoc(tripRef, { 
+            invite_code: newCode,
+            invite_count: tripData.invite_count || 0 
+          });
+          tripData.invite_code = newCode;
+          if (!tripData.invite_count) tripData.invite_count = 0;
+        }
+        
         setTrip(tripData);
 
         // Fetch all members for this trip
@@ -422,8 +454,13 @@ export const TripDetails: React.FC = () => {
 
         setMembers(allMembers);
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching trip details:', error);
+        if (error.message?.includes('insufficient permissions')) {
+          setTrip({ error: 'private' });
+        } else {
+          setTrip(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -457,6 +494,28 @@ export const TripDetails: React.FC = () => {
   }
   if (!trip) return <div className="min-h-screen flex items-center justify-center">Trip not found</div>;
 
+  if (trip.error === 'private') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white p-12 rounded-[3rem] shadow-2xl text-center border border-gray-100">
+          <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
+            <Lock className="w-10 h-10 text-indigo-600" />
+          </div>
+          <h2 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">Private Trip</h2>
+          <p className="text-gray-500 mb-8 leading-relaxed">
+            This trip is private. Only approved members can view its details. If you have been invited, please ensure you are logged in with the correct account.
+          </p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white pb-24">
       {/* Hero Image */}
@@ -477,6 +536,12 @@ export const TripDetails: React.FC = () => {
         
         {canManageTrip && (
           <div className="absolute top-6 right-6 flex space-x-3">
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl hover:bg-indigo-700 transition-all flex items-center"
+            >
+              <UserPlus className="w-4 h-4 mr-2" /> Invite
+            </button>
             <button
               onClick={() => setShowEditModal(true)}
               className="px-6 py-3 bg-white text-indigo-600 rounded-2xl font-bold shadow-xl hover:bg-gray-50 transition-all flex items-center"
@@ -583,6 +648,16 @@ export const TripDetails: React.FC = () => {
                     </p>
                   </div>
 
+                  {trip.destination_lat && trip.destination_lng && (
+                    <div className="mt-8 pt-8 border-t border-gray-50">
+                      <TripMap 
+                        lat={trip.destination_lat} 
+                        lng={trip.destination_lng} 
+                        destination={trip.destination_city} 
+                      />
+                    </div>
+                  )}
+
                   {trip.itinerary && (
                     <div className="mt-8 pt-8 border-t border-gray-50">
                       <h3 className="text-xl font-bold text-gray-900 mb-4">Initial Itinerary</h3>
@@ -654,8 +729,11 @@ export const TripDetails: React.FC = () => {
                     )}
                   </div>
                   <div className="flex items-center text-amber-500">
-                    <Star className="w-3 h-3 fill-amber-500 mr-1" />
-                    <span className="text-xs font-bold">4.9 (24 reviews)</span>
+                    <Star className={`w-3 h-3 mr-1 ${organizerRating.totalReviews > 0 ? 'fill-amber-500' : 'text-gray-300'}`} />
+                    <span className="text-xs font-bold">
+                      {organizerRating.totalReviews > 0 ? organizerRating.averageRating : 'New'}
+                      {organizerRating.totalReviews > 0 && ` (${organizerRating.totalReviews} reviews)`}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -691,35 +769,38 @@ export const TripDetails: React.FC = () => {
 
             <div className="bg-white p-6 rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-gray-900">Action</h3>
+                <h3 className="text-lg font-bold text-gray-900">Actions</h3>
               </div>
               
-              {isOrganizer ? (
-                <button
-                  onClick={() => navigate(`/messages/${trip.id}`)}
-                  className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center"
-                >
-                  <MessageSquare className="w-5 h-5 mr-2" /> Group Chat
-                </button>
-              ) : memberStatus === 'approved' ? (
-                <button
-                  onClick={() => navigate(`/messages/${trip.id}`)}
-                  className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center"
-                >
-                  <MessageSquare className="w-5 h-5 mr-2" /> Group Chat
-                </button>
-              ) : memberStatus === 'pending' ? (
-                <div className="w-full py-4 bg-amber-50 text-amber-600 rounded-2xl font-bold text-center border border-amber-100">
-                  Request Pending
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowJoinModal(true)}
-                  className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center shadow-lg shadow-indigo-100"
-                >
-                  <UserPlus className="w-5 h-5 mr-2" /> Request to Join
-                </button>
-              )}
+              <div className="space-y-3">
+                {(isOrganizer || memberStatus === 'approved') ? (
+                  <>
+                    <button
+                      onClick={() => navigate(`/messages/${trip.id}`)}
+                      className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center shadow-lg shadow-indigo-100"
+                    >
+                      <MessageSquare className="w-5 h-5 mr-2" /> Group Chat
+                    </button>
+                    <button
+                      onClick={() => navigate(`/trips/${trip.id}/expenses`)}
+                      className="w-full py-4 bg-emerald-50 text-emerald-600 rounded-2xl font-bold hover:bg-emerald-100 transition-all flex items-center justify-center border border-emerald-100"
+                    >
+                      <DollarSign className="w-5 h-5 mr-2" /> Expense Split
+                    </button>
+                  </>
+                ) : memberStatus === 'pending' ? (
+                  <div className="w-full py-4 bg-amber-50 text-amber-600 rounded-2xl font-bold text-center border border-amber-100">
+                    Request Pending
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowJoinModal(true)}
+                    className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center shadow-lg shadow-indigo-100"
+                  >
+                    <UserPlus className="w-5 h-5 mr-2" /> Request to Join
+                  </button>
+                )}
+              </div>
               
               <p className="mt-4 text-[10px] text-center text-gray-400 uppercase tracking-widest font-bold">
                 {trip.current_members} of {trip.max_members} spots filled
@@ -738,6 +819,12 @@ export const TripDetails: React.FC = () => {
               setShowJoinModal(false);
               setMemberStatus('pending');
             }}
+          />
+        )}
+        {showShareModal && (
+          <ShareModal
+            trip={trip}
+            onClose={() => setShowShareModal(false)}
           />
         )}
         {showEditModal && (

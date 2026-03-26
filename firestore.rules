@@ -34,6 +34,7 @@ service cloud.firestore {
     //   - current_members: number (required) - Current members
     //   - travel_style: string (required) - Travel style
     //   - description: string (required) - Trip description
+    //   - settings: map (required) - Trip settings (privacy, visibility, notifications)
     //   - status: string (required) - Trip status (open, full, etc.)
     //   - created_at: string (required) - Creation date
     //
@@ -54,7 +55,7 @@ service cloud.firestore {
       return isAuthenticated() &&
         ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-          (request.auth.token.email == "pavankancharla1357@gmail.com"));
+          (request.auth.token.email == "pavankancharla1357@gmail.com" && request.auth.token.email_verified == true));
     }
 
     function isValidEmail(email) {
@@ -82,9 +83,17 @@ service cloud.firestore {
     }
 
     function isValidTrip(data) {
-      return data.organizer_id is string && data.organizer_id == request.auth.uid &&
+      return data.organizer_id is string && 
              data.destination_city is string && data.destination_city.size() > 0 &&
-             data.status in ['open', 'full', 'ongoing', 'completed', 'cancelled'];
+             data.status in ['open', 'full', 'ongoing', 'completed', 'cancelled'] &&
+             (!('settings' in data) || (
+               data.settings is map &&
+               data.settings.privacy in ['public', 'private'] &&
+               data.settings.show_exact_location is bool &&
+               data.settings.notification_preferences is map
+             )) &&
+             (!('invite_code' in data) || data.invite_code is string) &&
+             (!('invite_count' in data) || data.invite_count is int);
     }
 
     // ===============================================================
@@ -103,16 +112,22 @@ service cloud.firestore {
     }
 
     match /trips/{tripId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (
+        (!('settings' in resource.data) || resource.data.settings.privacy == 'public') ||
+        request.auth.uid == resource.data.organizer_id ||
+        exists(/databases/$(database)/documents/trip_members/$(request.auth.uid + '_' + tripId)) || 
+        isAdmin()
+      );
       
       allow create: if isAuthenticated() && 
                       isValidTrip(request.resource.data) &&
-                      hasRequiredFields(['organizer_id', 'destination_city', 'start_date', 'end_date', 'status']);
+                      request.resource.data.organizer_id == request.auth.uid &&
+                      hasRequiredFields(['organizer_id', 'destination_city', 'start_date', 'end_date', 'status', 'settings']);
       
       allow update: if isAuthenticated() && (
-        request.auth.uid == resource.data.organizer_id || 
+        (request.auth.uid == resource.data.organizer_id && isValidTrip(request.resource.data)) || 
         isAdmin() ||
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['current_members']))
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['current_members', 'invite_count']))
       );
       
       allow delete: if isAuthenticated() && (request.auth.uid == resource.data.organizer_id || isAdmin());

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { db } from '../../firebase';
 import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { X, Save, MapPin, Calendar, IndianRupee, Users, Info, Image as ImageIcon } from 'lucide-react';
+import { X, Save, MapPin, Calendar, IndianRupee, Users, Info, Image as ImageIcon, Search, Shield } from 'lucide-react';
 import { motion } from 'motion/react';
 import { createNotification } from '../../services/notificationService';
 import { CustomSelect } from '../UI/CustomSelect';
 import { CustomDatePicker } from '../UI/CustomDatePicker';
+import { LocationAutocomplete } from './LocationAutocomplete';
+import { TripSettingsModal } from './TripSettingsModal';
 
 interface EditTripModalProps {
   trip: any;
@@ -15,17 +17,30 @@ interface EditTripModalProps {
 
 export const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [formData, setFormData] = useState({
     destination_city: trip.destination_city,
     destination_country: trip.destination_country,
+    destination_lat: trip.destination_lat || 0,
+    destination_lng: trip.destination_lng || 0,
     start_date: trip.start_date,
     end_date: trip.end_date,
     budget_max: trip.budget_max.toString(),
     max_members: trip.max_members.toString(),
     travel_style: trip.travel_style,
     description: trip.description,
+    status: trip.status || 'open',
     itinerary: trip.itinerary || '',
     cover_image: trip.cover_image || '',
+    settings: trip.settings || {
+      privacy: 'public',
+      show_exact_location: true,
+      notification_preferences: {
+        new_member: true,
+        new_message: true,
+        expense_update: true,
+      },
+    },
   });
 
   const travelStyleOptions = [
@@ -33,6 +48,14 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onClose, onS
     { value: 'mid_range', label: 'Mid-Range' },
     { value: 'luxury', label: 'Luxury' },
     { value: 'backpacking', label: 'Backpacking' },
+  ];
+
+  const statusOptions = [
+    { value: 'open', label: 'Open' },
+    { value: 'full', label: 'Full' },
+    { value: 'ongoing', label: 'Ongoing' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'cancelled', label: 'Cancelled' },
   ];
 
   const maxMembersOptions = [
@@ -103,27 +126,23 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onClose, onS
         </div>
         
         <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto custom-scrollbar">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center">
-                <MapPin className="w-4 h-4 mr-2 text-indigo-600" /> Destination City
+                <MapPin className="w-4 h-4 mr-2 text-indigo-600" /> Destination
               </label>
-              <input
-                required
-                type="text"
-                value={formData.destination_city}
-                onChange={(e) => setFormData({ ...formData, destination_city: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50 hover:bg-white transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Country</label>
-              <input
-                required
-                type="text"
-                value={formData.destination_country}
-                onChange={(e) => setFormData({ ...formData, destination_country: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50 hover:bg-white transition-all"
+              <LocationAutocomplete
+                onSelect={(location) => {
+                  setFormData({
+                    ...formData,
+                    destination_city: location.city || '',
+                    destination_country: location.country || 'India',
+                    destination_lat: location.lat,
+                    destination_lng: location.lng
+                  });
+                }}
+                defaultValue={formData.destination_city}
+                placeholder="Where are you planning to go?"
               />
             </div>
           </div>
@@ -170,6 +189,13 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onClose, onS
               onChange={(val) => setFormData({ ...formData, travel_style: val })}
               options={travelStyleOptions}
             />
+            <CustomSelect
+              label="Trip Status"
+              value={formData.status}
+              onChange={(val) => setFormData({ ...formData, status: val })}
+              options={statusOptions}
+              icon={<Info className="w-4 h-4 text-indigo-600" />}
+            />
           </div>
 
           <div>
@@ -212,7 +238,15 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onClose, onS
             />
           </div>
 
-          <div className="pt-4">
+          <div className="pt-4 flex flex-col space-y-4">
+            <button
+              type="button"
+              onClick={() => setShowSettings(true)}
+              className="w-full py-4 bg-gray-50 text-gray-700 rounded-2xl font-bold text-lg hover:bg-gray-100 transition-all border border-gray-200 flex items-center justify-center"
+            >
+              <Shield className="w-5 h-5 mr-2 text-indigo-600" /> Trip Settings
+            </button>
+
             <button
               type="submit"
               disabled={loading}
@@ -226,6 +260,13 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onClose, onS
             </button>
           </div>
         </form>
+
+        <TripSettingsModal
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          settings={formData.settings}
+          onUpdate={(settings) => setFormData({ ...formData, settings })}
+        />
       </motion.div>
     </div>
   );

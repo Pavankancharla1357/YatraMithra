@@ -85,6 +85,8 @@
         "organizer_id": { "type": "string" },
         "destination_city": { "type": "string" },
         "destination_country": { "type": "string" },
+        "destination_lat": { "type": "number" },
+        "destination_lng": { "type": "number" },
         "start_date": { "type": "string", "format": "date" },
         "end_date": { "type": "string", "format": "date" },
         "budget_max": { "type": "integer" },
@@ -94,7 +96,24 @@
         "description": { "type": "string" },
         "itinerary": { "type": "string" },
         "is_women_only": { "type": "boolean" },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "privacy": { "type": "string", "enum": ["public", "private"] },
+            "show_exact_location": { "type": "boolean" },
+            "notification_preferences": {
+              "type": "object",
+              "properties": {
+                "new_member": { "type": "boolean" },
+                "new_message": { "type": "boolean" },
+                "expense_update": { "type": "boolean" }
+              }
+            }
+          }
+        },
         "status": { "type": "string", "enum": ["open", "full", "ongoing", "completed", "cancelled"] },
+        "invite_code": { "type": "string", "description": "Unique code for joining the trip via link" },
+        "invite_count": { "type": "integer", "description": "Number of users who joined via invite link" },
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["organizer_id", "destination_city", "start_date", "end_date", "status"]
@@ -109,6 +128,7 @@
         "role": { "type": "string", "enum": ["organizer", "member"] },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected", "left"] },
         "request_message": { "type": "string" },
+        "joined_via": { "type": "string", "enum": ["request", "invite_link"] },
         "joined_at": { "type": "string", "format": "date-time" }
       },
       "required": ["trip_id", "user_id", "role", "status"]

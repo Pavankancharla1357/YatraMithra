@@ -4,7 +4,7 @@ import { db, auth } from '../../firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult, linkWithPhoneNumber } from 'firebase/auth';
 import { handleFirestoreError, OperationType } from '../../utils/firestoreErrorHandler';
-import { User, MapPin, Heart, Mail, Shield, Star, Edit2, Check, X, Instagram, Linkedin, Twitter, Globe, Sparkles, MessageSquare, Phone, Smartphone, Camera, Image as ImageIcon, Upload } from 'lucide-react';
+import { User, MapPin, Heart, Mail, Shield, Star, Edit2, Check, X, Instagram, Linkedin, Twitter, Globe, Sparkles, MessageSquare, Phone, Smartphone, Camera, Image as ImageIcon, Upload, Plane } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Cropper from 'react-easy-crop';
 import { TravelVibeQuiz } from '../../components/Profile/TravelVibeQuiz';
@@ -44,6 +44,8 @@ export const Profile: React.FC = () => {
     location_city: profile?.location_city || '',
     location_country: profile?.location_country || '',
     gender: profile?.gender || 'prefer_not_to_say',
+    age: profile?.age || '',
+    travel_style: profile?.travel_style || 'mid_range',
     phone_number: '',
     social_links: {
       instagram: profile?.social_links?.instagram || '',
@@ -76,6 +78,8 @@ export const Profile: React.FC = () => {
         location_city: profile.location_city || '',
         location_country: profile.location_country || '',
         gender: profile.gender || 'prefer_not_to_say',
+        age: profile.age || '',
+        travel_style: profile.travel_style || 'mid_range',
         phone_number: displayPhone,
         social_links: {
           instagram: profile.social_links?.instagram || '',
@@ -235,6 +239,7 @@ export const Profile: React.FC = () => {
     try {
       await setDoc(doc(db, 'users', user.uid), {
         ...formData,
+        age: parseInt(formData.age.toString()) || 0,
         updated_at: new Date().toISOString(),
       }, { merge: true });
       await refreshProfile();
@@ -675,6 +680,19 @@ export const Profile: React.FC = () => {
                             </select>
                           </div>
                         </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Age</label>
+                          <div className="relative">
+                            <User className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                            <input
+                              type="number"
+                              value={formData.age}
+                              onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                              className="w-full pl-12 pr-6 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-50 outline-none font-bold text-sm text-gray-900 transition-all"
+                              placeholder="e.g. 25"
+                            />
+                          </div>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -717,6 +735,22 @@ export const Profile: React.FC = () => {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Travel Style</label>
+                          <div className="relative">
+                            <Plane className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+                            <select
+                              value={formData.travel_style}
+                              onChange={(e) => setFormData({ ...formData, travel_style: e.target.value })}
+                              className="w-full pl-12 pr-10 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-50 outline-none font-bold text-sm text-gray-900 appearance-none transition-all cursor-pointer"
+                            >
+                              <option value="budget">Budget</option>
+                              <option value="mid_range">Mid Range</option>
+                              <option value="luxury">Luxury</option>
+                              <option value="backpacking">Backpacking</option>
+                            </select>
+                          </div>
+                        </div>
                         <div className="space-y-2">
                           <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Instagram Username</label>
                           <div className="relative">
@@ -798,8 +832,8 @@ export const Profile: React.FC = () => {
                               }}
                               className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${
                                 formData.interests.includes(interest)
-                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-100'
-                                  : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200'
+                                  ? 'bg-indigo-600 text-white border-indigo-600'
+                                  : 'bg-white text-gray-400 border-gray-100 hover:border-indigo-100 hover:text-indigo-600'
                               }`}
                             >
                               {interest}
@@ -807,7 +841,22 @@ export const Profile: React.FC = () => {
                           ))}
                         </div>
                       </div>
-
+                    </div>
+                  ) : (
+                    <div className="space-y-8">
+                      <div className="flex flex-wrap gap-4">
+                        <div className="flex items-center space-x-2 bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">
+                          <User className="w-4 h-4 text-indigo-600" />
+                          <span className="text-sm font-bold text-gray-700">{profile.age || 'Age not set'} years old</span>
+                        </div>
+                        <div className="flex items-center space-x-2 bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">
+                          <Plane className="w-4 h-4 text-violet-600" />
+                          <span className="text-sm font-bold text-gray-700 capitalize">{profile.travel_style?.replace('_', ' ') || 'Style not set'}</span>
+                        </div>
+                      </div>
+                      <p className="text-gray-600 leading-relaxed font-medium text-base sm:text-lg italic">
+                        "{profile.bio || 'No bio yet. Tell us about your travel adventures!'}"
+                      </p>
                       <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Phone Number</label>
                         <div className="flex gap-4">
@@ -858,14 +907,6 @@ export const Profile: React.FC = () => {
                       >
                         Save Changes
                       </button>
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      <div className="absolute -left-4 top-0 text-4xl text-indigo-100 font-serif">"</div>
-                      <p className="text-sm sm:text-base text-gray-600 leading-relaxed font-medium pl-4">
-                        {profile.bio || "Your travel story starts here. Add a bio to let others know who you are!"}
-                      </p>
-                      <div className="absolute -right-2 bottom-0 text-4xl text-indigo-100 font-serif rotate-180">"</div>
                     </div>
                   )}
                 </motion.div>

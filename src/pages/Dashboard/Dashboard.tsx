@@ -8,14 +8,21 @@ import { LayoutDashboard, Plane, MessageSquare, Bell, ChevronRight, Star } from 
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 
+import { subscribeToUserRating } from '../../services/reviewService';
+
 export const Dashboard: React.FC = () => {
   const { user, profile } = useAuth();
   const [myTrips, setMyTrips] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
+  const [rating, setRating] = useState<{ averageRating: number; totalReviews: number }>({ averageRating: 0, totalReviews: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
+
+    const unsubscribeRating = subscribeToUserRating(user.uid, (newRating) => {
+      setRating(newRating);
+    });
 
     const fetchDashboardData = async () => {
       try {
@@ -59,6 +66,7 @@ export const Dashboard: React.FC = () => {
     };
 
     fetchDashboardData();
+    return () => unsubscribeRating();
   }, [user]);
 
   const handleRequestAction = async (requestId: string, action: 'approved' | 'rejected', tripId: string) => {
@@ -163,11 +171,11 @@ export const Dashboard: React.FC = () => {
             <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100">
               <div className="flex items-center space-x-4 mb-8">
                 <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center">
-                  <Star className="text-indigo-600 w-8 h-8" />
+                  <Star className="text-indigo-600 w-8 h-8 fill-indigo-600" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900">{profile?.reputation_score || 0}</h3>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Reputation Score</span>
+                  <h3 className="text-2xl font-bold text-gray-900">{rating.totalReviews > 0 ? rating.averageRating : 'New'}</h3>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Average Rating ({rating.totalReviews})</span>
                 </div>
               </div>
               <div className="space-y-4">

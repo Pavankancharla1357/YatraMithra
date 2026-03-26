@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { createUserWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider, db } from '../../firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -15,6 +15,9 @@ export const Register: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const from = location.state?.from || '/profile/setup';
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +43,7 @@ export const Register: React.FC = () => {
         handleFirestoreError(err, OperationType.WRITE, path);
       }
 
-      navigate('/profile/setup');
+      navigate(from, { replace: true });
     } catch (err: any) {
       setError(getAuthErrorMessage(err.code) || err.message || 'Failed to register');
     } finally {
@@ -70,7 +73,7 @@ export const Register: React.FC = () => {
         handleFirestoreError(err, OperationType.WRITE, path);
       }
 
-      navigate('/profile/setup');
+      navigate(from, { replace: true });
     } catch (err: any) {
       setError(getAuthErrorMessage(err.code) || err.message || 'Failed to login with Google');
     }

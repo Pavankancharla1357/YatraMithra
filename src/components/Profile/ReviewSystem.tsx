@@ -21,7 +21,7 @@ export const ReviewSystem: React.FC<ReviewSystemProps> = ({ targetUserId }) => {
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    const q = query(collection(db, 'reviews'), where('target_user_id', '==', targetUserId));
+    const q = query(collection(db, 'reviews'), where('reviewee_id', '==', targetUserId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setReviews(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
@@ -38,7 +38,7 @@ export const ReviewSystem: React.FC<ReviewSystemProps> = ({ targetUserId }) => {
       await addDoc(collection(db, 'reviews'), {
         reviewer_id: user.uid,
         reviewer_name: reviewerName,
-        target_user_id: targetUserId,
+        reviewee_id: targetUserId,
         rating: newReview.rating,
         comment: newReview.comment.trim(),
         created_at: serverTimestamp()
@@ -76,7 +76,7 @@ export const ReviewSystem: React.FC<ReviewSystemProps> = ({ targetUserId }) => {
 
   const averageRating = reviews.length > 0 
     ? (reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviews.length).toFixed(1)
-    : '0.0';
+    : 'New';
 
   return (
     <div className="space-y-8">
@@ -86,11 +86,13 @@ export const ReviewSystem: React.FC<ReviewSystemProps> = ({ targetUserId }) => {
           <div className="flex items-center mt-1">
             <div className="flex items-center text-amber-500 mr-2">
               {[...Array(5)].map((_, i) => (
-                <Star key={i} className={`w-4 h-4 ${i < Math.round(Number(averageRating)) ? 'fill-amber-500' : 'text-gray-200'}`} />
+                <Star key={i} className={`w-4 h-4 ${reviews.length > 0 && i < Math.round(Number(averageRating)) ? 'fill-amber-500' : 'text-gray-200'}`} />
               ))}
             </div>
             <span className="text-sm font-bold text-gray-900">{averageRating}</span>
-            <span className="text-sm text-gray-400 ml-1">({reviews.length} reviews)</span>
+            {reviews.length > 0 && (
+              <span className="text-sm text-gray-400 ml-1">({reviews.length} reviews)</span>
+            )}
           </div>
         </div>
         {user?.uid !== targetUserId && (

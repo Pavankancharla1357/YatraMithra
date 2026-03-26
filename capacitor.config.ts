@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.wandermatch.app',
+  appId: 'com.triptribe.app',
   appName: 'WanderMatch',
   webDir: 'dist',
   plugins: {

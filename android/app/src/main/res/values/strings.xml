@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">WanderMatch</string>
     <string name="title_activity_main">WanderMatch</string>
-    <string name="package_name">com.wandermatch.app</string>
-    <string name="custom_url_scheme">com.wandermatch.app</string>
+    <string name="package_name">com.triptribe.app</string>
+    <string name="custom_url_scheme">com.triptribe.app</string>
 </resources>

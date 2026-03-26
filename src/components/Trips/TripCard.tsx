@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Calendar, Users, IndianRupee, Star, Zap, User, Check, Heart } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '../Auth/AuthContext';
+import { subscribeToUserRating } from '../../services/reviewService';
 
 interface TripCardProps {
   trip: any;
@@ -10,6 +11,14 @@ interface TripCardProps {
 
 export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
   const { profile } = useAuth();
+  const [organizerRating, setOrganizerRating] = useState<{ averageRating: number; totalReviews: number }>({ averageRating: 0, totalReviews: 0 });
+
+  useEffect(() => {
+    const unsubscribe = subscribeToUserRating(trip.organizer_id, (rating) => {
+      setOrganizerRating(rating);
+    });
+    return () => unsubscribe();
+  }, [trip.organizer_id]);
   
   const getDestinationImage = (city: string) => {
     const cityLower = city.toLowerCase();
@@ -100,8 +109,13 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
           <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
             <div className="bg-white/90 backdrop-blur-sm p-2 rounded-2xl shadow-sm">
               <div className="flex items-center space-x-1">
-                <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                <span className="text-xs font-bold text-gray-900">4.8</span>
+                <Star className={`w-3 h-3 ${organizerRating.totalReviews > 0 ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}`} />
+                <span className="text-xs font-bold text-gray-900">
+                  {organizerRating.totalReviews > 0 ? organizerRating.averageRating : 'New'}
+                </span>
+                {organizerRating.totalReviews > 0 && (
+                  <span className="text-[10px] text-gray-400 font-medium">({organizerRating.totalReviews})</span>
+                )}
               </div>
             </div>
           </div>

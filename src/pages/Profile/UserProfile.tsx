@@ -1,24 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../../firebase';
-import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
-import { User, MapPin, Mail, Shield, Star, ChevronLeft, Plane, MessageSquare, Instagram, Linkedin, Twitter, Globe, Camera, Send, Users, Calendar } from 'lucide-react';
-import { motion } from 'motion/react';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy } from 'firebase/firestore';
+import { User, MapPin, Mail, Shield, Star, ChevronLeft, Plane, MessageSquare, Instagram, Linkedin, Twitter, Globe, Camera, Send, Users, Calendar, Edit2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../components/Auth/AuthContext';
 import { TripCard } from '../../components/Trips/TripCard';
 import { ReviewSystem } from '../../components/Profile/ReviewSystem';
-import { orderBy } from 'firebase/firestore';
+import { EditProfileModal } from '../../components/Profile/EditProfileModal';
+
+import { subscribeToUserRating } from '../../services/reviewService';
 
 export const UserProfile: React.FC = () => {
   const { uid } = useParams<{ uid: string }>();
   const navigate = useNavigate();
-  const { user, profile: currentUserProfile } = useAuth();
+  const { user, profile: currentUserProfile, refreshProfile } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [trips, setTrips] = useState<any[]>([]);
   const [buddyPosts, setBuddyPosts] = useState<any[]>([]);
+  const [rating, setRating] = useState<{ averageRating: number; totalReviews: number }>({ averageRating: 0, totalReviews: 0 });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'about' | 'trips' | 'reviews' | 'buddy'>('about');
   const [messaging, setMessaging] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const handleMessage = async () => {
     if (!user || !uid || user.uid === uid) return;
@@ -70,27 +74,39 @@ export const UserProfile: React.FC = () => {
   useEffect(() => {
     if (!uid) return;
 
+    const unsubscribeRating = subscribeToUserRating(uid, (newRating) => {
+      setRating(newRating);
+    });
+
+    const unsubscribeProfile = onSnapshot(doc(db, 'users', uid), (docSnap) => {
+      if (docSnap.exists()) {
+        setProfile(docSnap.data());
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error('Error fetching user profile:', error);
+      setLoading(false);
+    });
+
     const fetchUserData = async () => {
       try {
-        const [userDoc, tripsSnapshot, buddySnapshot] = await Promise.all([
-          getDoc(doc(db, 'users', uid)),
+        const [tripsSnapshot, buddySnapshot] = await Promise.all([
           getDocs(query(collection(db, 'trips'), where('organizer_id', '==', uid))),
           getDocs(query(collection(db, 'buddy_posts'), where('user_id', '==', uid), orderBy('created_at', 'desc')))
         ]);
 
-        if (userDoc.exists()) {
-          setProfile(userDoc.data());
-          setTrips(tripsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-          setBuddyPosts(buddySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        }
+        setTrips(tripsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setBuddyPosts(buddySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       } catch (error) {
-        console.error('Error fetching user profile:', error);
-      } finally {
-        setLoading(false);
+        console.error('Error fetching user data:', error);
       }
     };
 
     fetchUserData();
+    return () => {
+      unsubscribeRating();
+      unsubscribeProfile();
+    };
   }, [uid]);
 
   const formatSocialLink = (url: string, platform: 'instagram' | 'linkedin' | 'twitter') => {
@@ -200,21 +216,36 @@ export const UserProfile: React.FC = () => {
                   <MapPin className="w-4 h-4 mr-1 text-indigo-600" />
                   <span>{profile.location_city}, {profile.location_country}</span>
                 </div>
-                {user && user.uid !== uid && (
-                  <button
-                    onClick={handleMessage}
-                    disabled={messaging}
-                    className="mt-4 flex items-center space-x-2 px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    <span>{messaging ? 'Connecting...' : 'Message'}</span>
-                  </button>
-                )}
+                <div className="flex flex-wrap gap-3 mt-4">
+                  {user && user.uid !== uid && (
+                    <button
+                      onClick={handleMessage}
+                      disabled={messaging}
+                      className="flex items-center space-x-2 px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      <span>{messaging ? 'Connecting...' : 'Message'}</span>
+                    </button>
+                  )}
+                  {user && user.uid === uid && (
+                    <button
+                      onClick={() => setShowEditModal(true)}
+                      className="flex items-center space-x-2 px-6 py-2 bg-white text-indigo-600 border-2 border-indigo-50 rounded-xl font-bold hover:bg-indigo-50 transition-all shadow-sm"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      <span>Edit Profile</span>
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="flex items-center space-x-8">
                 <div className="text-center">
-                  <p className="text-2xl font-extrabold text-gray-900">{profile.reputation_score || 0}</p>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Reputation</span>
+                  <p className="text-2xl font-extrabold text-gray-900">{rating.totalReviews > 0 ? rating.averageRating : 'New'}</p>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rating</span>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-extrabold text-gray-900">{rating.totalReviews}</p>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Reviews</span>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-extrabold text-gray-900">{trips.length}</p>
@@ -416,6 +447,26 @@ export const UserProfile: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showEditModal && (
+          <EditProfileModal 
+            profile={{ ...profile, uid }} 
+            onClose={() => setShowEditModal(false)} 
+            onSuccess={async () => {
+              setShowEditModal(false);
+              // Re-fetch user data to show updates
+              const userDoc = await getDoc(doc(db, 'users', uid!));
+              if (userDoc.exists()) {
+                setProfile(userDoc.data());
+              }
+              if (user?.uid === uid) {
+                refreshProfile();
+              }
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

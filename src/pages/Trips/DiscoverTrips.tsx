@@ -5,10 +5,12 @@ import { TripCard } from '../../components/Trips/TripCard';
 import { Search, Filter, MapPin, Calendar as CalendarIcon, SlidersHorizontal, Compass, Plane, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../components/Auth/AuthContext';
 import { CustomSelect } from '../../components/UI/CustomSelect';
 import { CustomDatePicker } from '../../components/UI/CustomDatePicker';
 
 export const DiscoverTrips: React.FC = () => {
+  const { user } = useAuth();
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,6 +22,34 @@ export const DiscoverTrips: React.FC = () => {
     maxBudget: '',
     travelStyle: '',
   });
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [sortByNearby, setSortByNearby] = useState(false);
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (error) => console.error("Error getting location:", error)
+      );
+    }
+  }, []);
+
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
 
   const travelStyleOptions = [
     { value: '', label: 'All Styles' },
@@ -32,7 +62,10 @@ export const DiscoverTrips: React.FC = () => {
   useEffect(() => {
     const fetchTrips = async () => {
       try {
-        const q = query(collection(db, 'trips'), where('status', '==', 'open'), orderBy('created_at', 'desc'));
+        const q = query(
+          collection(db, 'trips'), 
+          orderBy('created_at', 'desc')
+        );
         const querySnapshot = await getDocs(q);
         const tripsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setTrips(tripsData);
@@ -47,6 +80,15 @@ export const DiscoverTrips: React.FC = () => {
   }, []);
 
   const filteredTrips = trips.filter(trip => {
+    // Client-side privacy filter (backup to security rules)
+    if (trip.settings?.privacy === 'private' && trip.organizer_id !== user?.uid) {
+      return false;
+    }
+
+    // Status filter (treat missing status as 'open' for legacy data)
+    const status = trip.status || 'open';
+    if (status !== 'open') return false;
+
     const matchesSearch = trip.destination_city.toLowerCase().includes(searchTerm.toLowerCase()) ||
       trip.destination_country.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -58,6 +100,13 @@ export const DiscoverTrips: React.FC = () => {
     const matchesStyle = !filters.travelStyle || trip.travel_style === filters.travelStyle;
 
     return matchesSearch && matchesTag && matchesStartDate && matchesEndDate && matchesBudget && matchesStyle;
+  }).sort((a, b) => {
+    if (sortByNearby && userLocation && a.destination_lat && b.destination_lat) {
+      const distA = calculateDistance(userLocation.lat, userLocation.lng, a.destination_lat, a.destination_lng);
+      const distB = calculateDistance(userLocation.lat, userLocation.lng, b.destination_lat, b.destination_lng);
+      return distA - distB;
+    }
+    return 0;
   });
 
   const tags = ['Budget', 'Adventure', 'Trekking', 'Nature', 'Luxury', 'Culture', 'Backpacking', 'Relaxation', 'Foodie'];
@@ -97,6 +146,17 @@ export const DiscoverTrips: React.FC = () => {
               <SlidersHorizontal className="w-5 h-5 mr-2" />
               Filters
             </button>
+            {userLocation && (
+              <button 
+                onClick={() => setSortByNearby(!sortByNearby)}
+                className={`flex items-center justify-center px-6 py-4 border rounded-2xl font-bold transition-all ${
+                  sortByNearby ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <MapPin className="w-5 h-5 mr-2" />
+                Nearby
+              </button>
+            )}
           </div>
           
           <div className="flex flex-wrap gap-2 mt-6">
