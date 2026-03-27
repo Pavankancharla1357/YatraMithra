@@ -841,6 +841,15 @@ export const Profile: React.FC = () => {
                           ))}
                         </div>
                       </div>
+
+                      {isEditing && (
+                        <button
+                          onClick={handleUpdate}
+                          className="w-full py-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl font-black text-sm hover:shadow-lg transition-all transform hover:-translate-y-0.5 mt-8"
+                        >
+                          Save Changes
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-8">
@@ -900,13 +909,6 @@ export const Profile: React.FC = () => {
                           )}
                         </div>
                       </div>
-
-                      <button
-                        onClick={handleUpdate}
-                        className="w-full py-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl font-black text-sm hover:shadow-lg transition-all transform hover:-translate-y-0.5"
-                      >
-                        Save Changes
-                      </button>
                     </div>
                   )}
                 </motion.div>
@@ -1230,6 +1232,19 @@ export const Profile: React.FC = () => {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showQuiz && (
+          <TravelVibeQuiz 
+            userId={user!.uid} 
+            onClose={() => setShowQuiz(false)}
+            onComplete={() => {
+              setShowQuiz(false);
+              refreshProfile();
+            }}
+          />
         )}
       </AnimatePresence>
 

@@ -59,23 +59,24 @@ export const TravelVibeQuiz: React.FC<TravelVibeQuizProps> = ({ userId, onComple
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAnswer = (category: string, value: number) => {
-    setAnswers(prev => ({ ...prev, [category]: (prev[category] || 0) + value }));
+    const updatedAnswers = { ...answers, [category]: (answers[category] || 0) + value };
+    setAnswers(updatedAnswers);
     if (currentStep < questions.length - 1) {
       setCurrentStep(prev => prev + 1);
     } else {
-      submitQuiz();
+      submitQuiz(updatedAnswers);
     }
   };
 
-  const submitQuiz = async () => {
+  const submitQuiz = async (finalAnswers: Record<string, number>) => {
     setIsSubmitting(true);
     const path = `users/${userId}`;
     try {
       await setDoc(doc(db, 'users', userId), {
-        vibe_quiz_results: answers,
+        vibe_quiz_results: finalAnswers,
         updated_at: new Date().toISOString()
       }, { merge: true });
-      onComplete(answers);
+      onComplete(finalAnswers);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
     } finally {

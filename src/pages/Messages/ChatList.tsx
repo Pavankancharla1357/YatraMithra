@@ -16,7 +16,7 @@ export const ChatList: React.FC = () => {
   useEffect(() => {
     if (!user) return;
 
-    // Listen for unread message notifications to show red dots
+    // 1. Listen for unread message notifications
     const unreadQ = query(
       collection(db, 'notifications'),
       where('user_id', '==', user.uid),
@@ -36,93 +36,117 @@ export const ChatList: React.FC = () => {
       setUnreadChatIds(ids);
     });
 
-    const fetchChats = async () => {
-      try {
-        setLoading(true);
-        // 1. Fetch trip-based chats (existing logic)
-        const memberQ = query(collection(db, 'trip_members'), where('user_id', '==', user.uid), where('status', '==', 'approved'));
-        const memberSnapshot = await getDocs(memberQ);
-        const memberTripIds = memberSnapshot.docs.map(doc => doc.data().trip_id);
+    // 2. Real-time listener for trip-based chats
+    const tripMembersQuery = query(
+      collection(db, 'trip_members'),
+      where('user_id', '==', user.uid),
+      where('status', '==', 'approved')
+    );
 
-        const organizerQ = query(collection(db, 'trips'), where('organizer_id', '==', user.uid));
-        const organizerSnapshot = await getDocs(organizerQ);
-        const organizerTripIds = organizerSnapshot.docs.map(doc => doc.id);
+    let unsubscribeTripsData: (() => void) | null = null;
 
-        const allTripIds = Array.from(new Set([...memberTripIds, ...organizerTripIds]));
+    const unsubscribeTripMembers = onSnapshot(tripMembersQuery, async (snapshot) => {
+      const tripIds = snapshot.docs.map(doc => doc.data().trip_id);
+      
+      // Also check for trips where user is organizer
+      const organizerQ = query(collection(db, 'trips'), where('organizer_id', '==', user.uid));
+      const organizerSnapshot = await getDocs(organizerQ);
+      const organizerTripIds = organizerSnapshot.docs.map(doc => doc.id);
+      
+      const allTripIds = Array.from(new Set([...tripIds, ...organizerTripIds]));
+
+      if (unsubscribeTripsData) unsubscribeTripsData();
+
+      if (allTripIds.length === 0) {
+        setChats(prev => prev.filter(c => c.type !== 'group'));
+        return;
+      }
+
+      const tripsQ = query(collection(db, 'trips'), where('__name__', 'in', allTripIds.slice(0, 10)));
+      unsubscribeTripsData = onSnapshot(tripsQ, (tripsSnapshot) => {
+        const tripChats = tripsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          type: 'group' as const,
+          name: `${doc.data().destination_city} Group`,
+          lastMessage: 'Tap to open group chat',
+          icon: doc.data().destination_city?.charAt(0) || 'T',
+          ...doc.data(),
+          lastMessageTime: doc.data().last_message_time || doc.data().updated_at || doc.data().created_at
+        }));
         
-        let tripChats: any[] = [];
-        if (allTripIds.length > 0) {
-          const tripsQ = query(collection(db, 'trips'), where('__name__', 'in', allTripIds.slice(0, 10)));
-          const tripsSnapshot = await getDocs(tripsQ);
-          tripChats = tripsSnapshot.docs.map(doc => ({ 
-            id: doc.id, 
-            type: 'group',
-            name: `${doc.data().destination_city} Group`,
-            lastMessage: 'Tap to open group chat',
-            icon: doc.data().destination_city.charAt(0),
-            ...doc.data(),
-            lastMessageTime: doc.data().last_message_time || doc.data().updated_at || doc.data().created_at
-          }));
-        }
+        setChats(prev => {
+          const others = prev.filter(c => c.type !== 'group');
+          const combined = [...others, ...tripChats].sort((a, b) => {
+            const timeA = a.lastMessageTime?.seconds || 0;
+            const timeB = b.lastMessageTime?.seconds || 0;
+            return timeB - timeA;
+          });
+          return combined;
+        });
+        setLoading(false);
+      });
+    });
 
-        // 2. Fetch direct message channels
-        const channelsQ = query(
-          collection(db, 'channels'), 
-          where('participants', 'array-contains', user.uid)
-        );
-        const channelsSnapshot = await getDocs(channelsQ);
-        const directChatsPromises = channelsSnapshot.docs.map(async (docSnapshot) => {
-          const data = docSnapshot.data();
-          let name = 'Direct Message';
-          let icon = 'DM';
-          let photoUrl = null;
-          let otherUserId = null;
+    // 3. Real-time listener for direct message channels
+    const channelsQ = query(
+      collection(db, 'channels'),
+      where('participants', 'array-contains', user.uid)
+    );
 
-          if (data.type === 'direct') {
-            otherUserId = data.participants.find((id: string) => id !== user.uid);
-            if (otherUserId) {
-              const userDoc = await getDoc(doc(db, 'users', otherUserId));
-              if (userDoc.exists()) {
-                const userData = userDoc.data();
-                name = userData.name || 'Traveler';
-                icon = name.charAt(0);
-                photoUrl = userData.photo_url;
-              }
+    const unsubscribeChannels = onSnapshot(channelsQ, async (snapshot) => {
+      const directChatsPromises = snapshot.docs.map(async (docSnapshot) => {
+        const data = docSnapshot.data();
+        let name = 'Direct Message';
+        let icon = 'DM';
+        let photoUrl = null;
+        let otherUserId = null;
+
+        if (data.type === 'direct') {
+          otherUserId = data.participants.find((id: string) => id !== user.uid);
+          if (otherUserId) {
+            const userDoc = await getDoc(doc(db, 'users', otherUserId));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              name = userData.name || 'Traveler';
+              icon = name.charAt(0);
+              photoUrl = userData.photo_url;
             }
           }
+        }
 
-          return {
-            id: docSnapshot.id,
-            type: data.type,
-            name,
-            lastMessage: data.last_message || 'No messages yet',
-            lastMessageTime: data.last_message_time || data.updated_at,
-            participants: data.participants,
-            icon,
-            photoUrl,
-            otherUserId
-          };
-        });
+        return {
+          id: docSnapshot.id,
+          type: data.type,
+          name,
+          lastMessage: data.last_message || 'No messages yet',
+          lastMessageTime: data.last_message_time || data.updated_at,
+          participants: data.participants,
+          icon,
+          photoUrl,
+          otherUserId
+        };
+      });
 
-        const directChats = await Promise.all(directChatsPromises);
-
-        // Combine and sort by time
-        const allChats = [...tripChats, ...directChats].sort((a, b) => {
+      const directChats = await Promise.all(directChatsPromises);
+      
+      setChats(prev => {
+        const others = prev.filter(c => c.type === 'group');
+        const combined = [...others, ...directChats].sort((a, b) => {
           const timeA = a.lastMessageTime?.seconds || 0;
           const timeB = b.lastMessageTime?.seconds || 0;
           return timeB - timeA;
         });
+        return combined;
+      });
+      setLoading(false);
+    });
 
-        setChats(allChats);
-      } catch (error) {
-        console.error('Error fetching chats:', error);
-      } finally {
-        setLoading(false);
-      }
+    return () => {
+      unsubscribeUnread();
+      unsubscribeTripMembers();
+      if (unsubscribeTripsData) unsubscribeTripsData();
+      unsubscribeChannels();
     };
-
-    fetchChats();
-    return () => unsubscribeUnread();
   }, [user]);
 
   const filteredChats = chats.filter(chat => 
