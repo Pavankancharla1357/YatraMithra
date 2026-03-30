@@ -37,7 +37,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ trip, onClose }) => {
       try {
         await navigator.share({
           title: `Join my trip to ${trip.destination_city}!`,
-          text: `Hey! I'm organizing a trip to ${trip.destination_city} on WanderMatch. Join me!`,
+          text: `Hey! I'm organizing a trip to ${trip.destination_city} on YatraMitra. Join me!`,
           url: inviteLink,
         });
       } catch (err) {
@@ -45,7 +45,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ trip, onClose }) => {
       }
     } else {
       // Fallback to WhatsApp
-      window.open(`https://wa.me/?text=Join my trip to ${trip.destination_city} on WanderMatch: ${inviteLink}`, '_blank');
+      window.open(`https://wa.me/?text=Join my trip to ${trip.destination_city} on YatraMitra: ${inviteLink}`, '_blank');
     }
   };
 
@@ -54,7 +54,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ trip, onClose }) => {
       name: 'WhatsApp',
       icon: <MessageCircle className="w-6 h-6" />,
       color: 'bg-emerald-500',
-      action: () => window.open(`https://wa.me/?text=Join my trip to ${trip.destination_city} on WanderMatch: ${inviteLink}`, '_blank')
+      action: () => window.open(`https://wa.me/?text=Join my trip to ${trip.destination_city} on YatraMitra: ${inviteLink}`, '_blank')
     },
     {
       name: 'Instagram',
@@ -71,7 +71,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ trip, onClose }) => {
       name: 'Twitter',
       icon: <Twitter className="w-6 h-6" />,
       color: 'bg-sky-500',
-      action: () => window.open(`https://twitter.com/intent/tweet?text=Join my trip to ${trip.destination_city} on WanderMatch!&url=${inviteLink}`, '_blank')
+      action: () => window.open(`https://twitter.com/intent/tweet?text=Join my trip to ${trip.destination_city} on YatraMitra!&url=${inviteLink}`, '_blank')
     }
   ];
 

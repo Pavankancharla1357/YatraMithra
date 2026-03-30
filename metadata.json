@@ -1,6 +1,6 @@
 {
-  "name": "WanderMatch",
-  "description": "A travel companion matching platform connecting solo travelers with compatible partners through AI-based matching and real-time group coordination.",
+  "name": "YatraMitra",
+  "description": "Plan trips, store travel documents, and connect with travelers using YatraMitra — your all-in-one AI travel companion.",
   "requestFramePermissions": [
     "camera",
     "geolocation"

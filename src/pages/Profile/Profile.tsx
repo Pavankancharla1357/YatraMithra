@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../components/Auth/AuthContext';
 import { db, auth } from '../../firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult, linkWithPhoneNumber, sendPasswordResetEmail } from 'firebase/auth';
 import { handleFirestoreError, OperationType } from '../../utils/firestoreErrorHandler';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
-import { User, MapPin, Heart, Mail, Shield, Star, Edit2, Check, X, Instagram, Linkedin, Twitter, Globe, Sparkles, MessageSquare, Phone, Smartphone, Camera, Image as ImageIcon, Upload, Plane, ArrowLeft, Lock as LockIcon } from 'lucide-react';
+import { User, MapPin, Heart, Mail, Shield, Star, Edit2, Check, X, Instagram, Linkedin, Twitter, Globe, Sparkles, MessageSquare, Phone, Smartphone, Camera, Image as ImageIcon, Upload, Plane, ArrowLeft, Lock as LockIcon, Info, Award, Compass } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Cropper from 'react-easy-crop';
 import { TravelVibeQuiz } from '../../components/Profile/TravelVibeQuiz';
 import { ReviewSystem } from '../../components/Profile/ReviewSystem';
 import { MyBuddyPosts } from '../../components/Profile/MyBuddyPosts';
 import { MyChatHistory } from '../../components/Profile/MyChatHistory';
+import { subscribeToUserRating } from '../../services/reviewService';
 
 interface CropArea {
   x: number;
@@ -39,6 +40,9 @@ export const Profile: React.FC = () => {
   const [verifying, setVerifying] = useState(false);
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
+  const [tripCount, setTripCount] = useState(0);
+  const [reviewStats, setReviewStats] = useState({ averageRating: 0, totalReviews: 0 });
+  const [showReputationInfo, setShowReputationInfo] = useState(false);
 
   const [formData, setFormData] = useState({
     name: profile?.name || '',
@@ -95,6 +99,26 @@ export const Profile: React.FC = () => {
       });
     }
   }, [profile]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    // Fetch Trip Count
+    const tripsQuery = query(collection(db, 'trips'), where('organizer_id', '==', user.uid));
+    const unsubscribeTrips = onSnapshot(tripsQuery, (snapshot) => {
+      setTripCount(snapshot.size);
+    });
+
+    // Fetch Review Stats
+    const unsubscribeReviews = subscribeToUserRating(user.uid, (stats) => {
+      setReviewStats(stats);
+    });
+
+    return () => {
+      unsubscribeTrips();
+      unsubscribeReviews();
+    };
+  }, [user]);
 
   const formatSocialLink = (url: string, platform: 'instagram' | 'linkedin' | 'twitter') => {
     if (!url) return '#';
@@ -241,8 +265,14 @@ export const Profile: React.FC = () => {
     if (!user) return;
     const path = `users/${user.uid}`;
     try {
+      const dataToSave = { ...formData };
+      // Ensure phone number is stored in E.164 format if it's a 10-digit Indian number
+      if (dataToSave.phone_number && dataToSave.phone_number.length === 10 && !dataToSave.phone_number.startsWith('+')) {
+        dataToSave.phone_number = `+91${dataToSave.phone_number}`;
+      }
+
       await setDoc(doc(db, 'users', user.uid), {
-        ...formData,
+        ...dataToSave,
         age: parseInt(formData.age.toString()) || 0,
         updated_at: new Date().toISOString(),
       }, { merge: true });
@@ -262,7 +292,12 @@ export const Profile: React.FC = () => {
     }));
   };
 
-  const interestsList = ['Nature', 'Food', 'History', 'Adventure', 'Nightlife', 'Culture', 'Photography', 'Hiking', 'Beach', 'Shopping'];
+  const interestsList = [
+    'Nature', 'Food', 'History', 'Adventure', 'Nightlife', 'Culture', 
+    'Photography', 'Hiking', 'Beach', 'Shopping', 'Mountains', 'Solo Travel',
+    'Road Trips', 'Luxury', 'Backpacking', 'Wildlife', 'Art', 'Music Festivals',
+    'Yoga', 'Surfing', 'Skiing', 'City Breaks', 'Rural Life', 'Architecture'
+  ];
 
   const startPhoneVerification = async () => {
     if (!formData.phone_number || formData.phone_number.length !== 10) {
@@ -452,18 +487,41 @@ export const Profile: React.FC = () => {
 
             <div className="pt-8 sm:pt-12 pb-6 sm:pb-8">
               <div className="flex flex-wrap justify-end items-center gap-6 sm:gap-12">
-              <div className="text-center group/stat cursor-default">
+              <div className="text-center group/stat cursor-pointer relative" onClick={() => setShowReputationInfo(!showReputationInfo)}>
                 <p className="text-2xl sm:text-3xl font-black text-gray-900 leading-none mb-1 group-hover/stat:text-indigo-600 transition-colors">{profile.reputation_score || 0}</p>
-                <span className="text-[8px] sm:text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Reputation</span>
+                <div className="flex items-center justify-center space-x-1">
+                  <span className="text-[8px] sm:text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Reputation</span>
+                  <Info className="w-2.5 h-2.5 text-gray-300 group-hover/stat:text-indigo-400" />
+                </div>
+                
+                <AnimatePresence>
+                  {showReputationInfo && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute bottom-full mb-4 right-0 w-64 bg-gray-900 text-white p-4 rounded-2xl text-left shadow-2xl z-50"
+                    >
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Award className="w-4 h-4 text-yellow-400" />
+                        <span className="text-xs font-black uppercase tracking-widest">Trust Score</span>
+                      </div>
+                      <p className="text-[10px] text-gray-300 leading-relaxed font-medium">
+                        Your reputation grows as you complete trips, receive positive reviews, and verify your identity. High reputation helps you find better travel buddies!
+                      </p>
+                      <div className="absolute bottom-0 right-8 translate-y-1/2 rotate-45 w-3 h-3 bg-gray-900" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
               <div className="hidden sm:block w-px h-8 bg-gray-100" />
               <div className="text-center group/stat cursor-default">
-                <p className="text-2xl sm:text-3xl font-black text-gray-900 leading-none mb-1 group-hover/stat:text-violet-600 transition-colors">0</p>
+                <p className="text-2xl sm:text-3xl font-black text-gray-900 leading-none mb-1 group-hover/stat:text-violet-600 transition-colors">{tripCount}</p>
                 <span className="text-[8px] sm:text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Trips</span>
               </div>
               <div className="hidden sm:block w-px h-8 bg-gray-100" />
               <div className="text-center group/stat cursor-default">
-                <p className="text-2xl sm:text-3xl font-black text-gray-900 leading-none mb-1 group-hover/stat:text-fuchsia-600 transition-colors">0</p>
+                <p className="text-2xl sm:text-3xl font-black text-gray-900 leading-none mb-1 group-hover/stat:text-fuchsia-600 transition-colors">{reviewStats.totalReviews}</p>
                 <span className="text-[8px] sm:text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Reviews</span>
               </div>
             </div>
@@ -509,6 +567,32 @@ export const Profile: React.FC = () => {
                         initial={{ width: 0 }}
                         animate={{ width: `${(profile.vibe_quiz_results.social || 0) * 20}%` }}
                         className="h-full bg-gradient-to-r from-violet-500 to-violet-600 rounded-full" 
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                      <span>Budget Style</span>
+                      <span className="text-emerald-600">{profile.vibe_quiz_results.budget}/5</span>
+                    </div>
+                    <div className="h-2.5 bg-gray-50 rounded-full overflow-hidden p-0.5 border border-gray-100/50">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(profile.vibe_quiz_results.budget || 0) * 20}%` }}
+                        className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full" 
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                      <span>Travel Pace</span>
+                      <span className="text-amber-600">{profile.vibe_quiz_results.pacing}/5</span>
+                    </div>
+                    <div className="h-2.5 bg-gray-50 rounded-full overflow-hidden p-0.5 border border-gray-100/50">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(profile.vibe_quiz_results.pacing || 0) * 20}%` }}
+                        className="h-full bg-gradient-to-r from-amber-500 to-amber-600 rounded-full" 
                       />
                     </div>
                   </div>
@@ -612,6 +696,20 @@ export const Profile: React.FC = () => {
                   }`}>Website</span>
                 </a>
               </div>
+            </div>
+
+            {/* App Branding */}
+            <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-8 rounded-2xl shadow-xl text-center relative overflow-hidden group">
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay" />
+              <motion.div 
+                className="w-16 h-16 mx-auto mb-4 relative z-10 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform duration-500"
+                whileHover={{ rotate: 360 }}
+                transition={{ duration: 1 }}
+              >
+                <Compass className="text-white w-9 h-9" />
+              </motion.div>
+              <h4 className="text-white font-black text-lg relative z-10 tracking-tight">YatraMitra</h4>
+              <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-[0.2em] relative z-10">Your Travel Companion</p>
             </div>
           </div>
 
@@ -874,51 +972,110 @@ export const Profile: React.FC = () => {
                           <Plane className="w-4 h-4 text-violet-600" />
                           <span className="text-sm font-bold text-gray-700 capitalize">{profile.travel_style?.replace('_', ' ') || 'Style not set'}</span>
                         </div>
+                        <div className="flex items-center space-x-2 bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">
+                          <Heart className="w-4 h-4 text-pink-600" />
+                          <span className="text-sm font-bold text-gray-700 capitalize">{profile.gender?.replace('_', ' ') || 'Gender not set'}</span>
+                        </div>
+                        <div className="flex items-center space-x-2 bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">
+                          <MapPin className="w-4 h-4 text-emerald-600" />
+                          <span className="text-sm font-bold text-gray-700">{profile.location_city}, {profile.location_country}</span>
+                        </div>
                       </div>
-                      <p className="text-gray-600 leading-relaxed font-medium text-base sm:text-lg italic">
-                        "{profile.bio || 'No bio yet. Tell us about your travel adventures!'}"
-                      </p>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Phone Number</label>
-                        <div className="flex gap-4">
-                          <div className="relative flex-1">
+
+                      <div className="space-y-4">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Bio</label>
+                        <p className="text-gray-600 leading-relaxed font-medium text-base sm:text-lg italic bg-gray-50/50 p-6 rounded-2xl border border-gray-100/50">
+                          "{profile.bio || 'No bio yet. Tell us about your travel adventures!'}"
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Social Presence</label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <a 
+                              href={formatSocialLink(profile.social_links?.instagram, 'instagram')} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className={`flex items-center space-x-3 p-3 rounded-xl transition-all border ${
+                                profile.social_links?.instagram 
+                                  ? 'bg-white border-gray-100 hover:border-pink-200 hover:bg-pink-50/30' 
+                                  : 'bg-gray-50/50 opacity-50 cursor-not-allowed'
+                              }`}
+                            >
+                              <Instagram className={`w-4 h-4 ${profile.social_links?.instagram ? 'text-pink-500' : 'text-gray-300'}`} />
+                              <span className="text-xs font-bold text-gray-600">Instagram</span>
+                            </a>
+                            <a 
+                              href={formatSocialLink(profile.social_links?.linkedin, 'linkedin')} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className={`flex items-center space-x-3 p-3 rounded-xl transition-all border ${
+                                profile.social_links?.linkedin 
+                                  ? 'bg-white border-gray-100 hover:border-blue-200 hover:bg-blue-50/30' 
+                                  : 'bg-gray-50/50 opacity-50 cursor-not-allowed'
+                              }`}
+                            >
+                              <Linkedin className={`w-4 h-4 ${profile.social_links?.linkedin ? 'text-blue-500' : 'text-gray-300'}`} />
+                              <span className="text-xs font-bold text-gray-600">LinkedIn</span>
+                            </a>
+                            <a 
+                              href={formatSocialLink(profile.social_links?.twitter, 'twitter')} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className={`flex items-center space-x-3 p-3 rounded-xl transition-all border ${
+                                profile.social_links?.twitter 
+                                  ? 'bg-white border-gray-100 hover:border-sky-200 hover:bg-sky-50/30' 
+                                  : 'bg-gray-50/50 opacity-50 cursor-not-allowed'
+                              }`}
+                            >
+                              <Twitter className={`w-4 h-4 ${profile.social_links?.twitter ? 'text-sky-500' : 'text-gray-300'}`} />
+                              <span className="text-xs font-bold text-gray-600">Twitter</span>
+                            </a>
+                            <a 
+                              href={profile.social_links?.website?.startsWith('http') ? profile.social_links.website : `https://${profile.social_links?.website}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className={`flex items-center space-x-3 p-3 rounded-xl transition-all border ${
+                                profile.social_links?.website 
+                                  ? 'bg-white border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/30' 
+                                  : 'bg-gray-50/50 opacity-50 cursor-not-allowed'
+                              }`}
+                            >
+                              <Globe className={`w-4 h-4 ${profile.social_links?.website ? 'text-emerald-500' : 'text-gray-300'}`} />
+                              <span className="text-xs font-bold text-gray-600">Website</span>
+                            </a>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Phone Number</label>
+                          <div className="relative">
                             <div className="absolute left-5 top-1/2 -translate-y-1/2 flex items-center space-x-2">
                               <span className="text-sm font-black text-gray-400">+91</span>
                             </div>
-                            <input
-                              type="tel"
-                              maxLength={10}
-                              disabled={profile.is_phone_verified}
-                              value={formData.phone_number}
-                              onChange={(e) => {
-                                const val = e.target.value.replace(/\D/g, '');
-                                setFormData({ ...formData, phone_number: val });
-                              }}
-                              className={`w-full pl-16 pr-6 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl outline-none font-bold text-sm transition-all ${
-                                profile.is_phone_verified 
-                                  ? 'text-emerald-600 bg-emerald-50/20 cursor-not-allowed' 
-                                  : 'text-gray-900 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-50'
-                              }`}
-                              placeholder="00000 00000"
-                            />
-                            {profile.is_phone_verified && (
-                              <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center space-x-1 text-emerald-500">
-                                <Check className="w-4 h-4" strokeWidth={3} />
-                                <span className="text-[10px] font-black uppercase tracking-widest">Verified</span>
-                              </div>
-                            )}
+                            <div className={`w-full pl-16 pr-6 py-3.5 bg-gray-50 border-2 border-transparent rounded-2xl font-bold text-sm flex items-center justify-between ${
+                              profile.is_phone_verified ? 'text-emerald-600 bg-emerald-50/20' : 'text-gray-400'
+                            }`}>
+                              <span>{formData.phone_number || 'Not set'}</span>
+                              {profile.is_phone_verified ? (
+                                <div className="flex items-center space-x-1 text-emerald-500">
+                                  <Check className="w-4 h-4" strokeWidth={3} />
+                                  <span className="text-[10px] font-black uppercase tracking-widest">Verified</span>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setActiveTab('security');
+                                  }}
+                                  className="text-indigo-600 hover:underline text-[10px] font-black uppercase tracking-widest"
+                                >
+                                  Verify Now
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          {!profile.is_phone_verified && (
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                setActiveTab('security');
-                              }}
-                              className="px-6 py-3.5 bg-indigo-50 text-indigo-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-100 transition-all border border-indigo-100"
-                            >
-                              Verify
-                            </button>
-                          )}
                         </div>
                       </div>
                     </div>

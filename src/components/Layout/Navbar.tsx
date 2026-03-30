@@ -46,10 +46,10 @@ export const Navbar: React.FC = () => {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to={user ? "/discover" : "/"} className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                <Compass className="text-white w-5 h-5" />
+              <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
+                <Compass className="text-white w-6 h-6" />
               </div>
-              <span className="text-xl font-bold text-gray-900 tracking-tight">WanderMatch</span>
+              <span className="text-xl font-bold text-gray-900 tracking-tight">YatraMitra</span>
             </Link>
           </div>
 

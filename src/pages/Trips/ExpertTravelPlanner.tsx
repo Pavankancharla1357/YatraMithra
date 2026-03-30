@@ -150,9 +150,11 @@ const ExpertTravelPlanner: React.FC = () => {
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div className="flex items-center gap-2">
-            <Plane className="w-4 h-4 text-indigo-500" />
+            <div className="w-6 h-6 bg-indigo-600 rounded-md flex items-center justify-center shadow-sm">
+              <Compass className="text-white w-4 h-4" />
+            </div>
             <h1 className="text-xs sm:text-sm font-bold uppercase tracking-widest text-slate-800">
-              WanderMatch AI
+              YatraMitra AI
             </h1>
           </div>
           <button 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Coffee, Mountain, Camera, Music, Utensils, Moon, Sun, Zap, Heart } from 'lucide-react';
+import { Sparkles, Coffee, Mountain, Camera, Music, Utensils, Moon, Sun, Zap, Heart, Users } from 'lucide-react';
 import { db } from '../../firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../../utils/firestoreErrorHandler';
@@ -43,6 +43,24 @@ const questions: Question[] = [
       { id: 'q3a', text: 'Hostels and street food (Budget)', icon: <Zap className="w-5 h-5" />, category: 'budget', value: 1 },
       { id: 'q3b', text: 'Boutique hotels and nice dinners (Mid)', icon: <Heart className="w-5 h-5" />, category: 'budget', value: 3 },
       { id: 'q3c', text: 'Luxury stays and fine dining (High)', icon: <Sparkles className="w-5 h-5" />, category: 'budget', value: 5 },
+    ]
+  },
+  {
+    id: 'q4',
+    text: 'How do you like to get around?',
+    options: [
+      { id: 'q4a', text: 'Walking everywhere to see it all', icon: <Sun className="w-5 h-5" />, category: 'activity', value: 4 },
+      { id: 'q4b', text: 'Public transport like a local', icon: <Users className="w-5 h-5" />, category: 'social', value: 3 },
+      { id: 'q4c', text: 'Private cars or taxis for comfort', icon: <Sparkles className="w-5 h-5" />, category: 'budget', value: 4 },
+    ]
+  },
+  {
+    id: 'q5',
+    text: 'What kind of destinations draw you in?',
+    options: [
+      { id: 'q5a', text: 'Bustling cities and skyscrapers', icon: <Zap className="w-5 h-5" />, category: 'social', value: 4 },
+      { id: 'q5b', text: 'Remote nature and quiet landscapes', icon: <Mountain className="w-5 h-5" />, category: 'pacing', value: 4 },
+      { id: 'q5c', text: 'Historic towns and ancient ruins', icon: <Camera className="w-5 h-5" />, category: 'activity', value: 3 },
     ]
   }
 ];

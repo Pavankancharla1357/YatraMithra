@@ -18,6 +18,13 @@ export const ProfileSetup: React.FC = () => {
     location_city: profile?.location_city || '',
     location_country: profile?.location_country || '',
     bio: profile?.bio || '',
+    gender: profile?.gender || 'prefer_not_to_say',
+    social_links: {
+      instagram: profile?.social_links?.instagram || '',
+      linkedin: profile?.social_links?.linkedin || '',
+      twitter: profile?.social_links?.twitter || '',
+      website: profile?.social_links?.website || '',
+    },
     interests: profile?.interests || [] as string[],
     travel_style: profile?.travel_style || 'mid_range',
     phone_number: profile?.phone_number || '',
@@ -38,12 +45,19 @@ export const ProfileSetup: React.FC = () => {
         ...prev,
         name: profile.name || prev.name,
         age: profile.age?.toString() || prev.age,
+        gender: profile.gender || prev.gender,
         location_city: profile.location_city || prev.location_city,
         location_country: profile.location_country || prev.location_country,
         bio: profile.bio || prev.bio,
         interests: profile.interests || prev.interests,
         travel_style: profile.travel_style || prev.travel_style,
         phone_number: displayPhone,
+        social_links: {
+          instagram: profile.social_links?.instagram || prev.social_links.instagram,
+          linkedin: profile.social_links?.linkedin || prev.social_links.linkedin,
+          twitter: profile.social_links?.twitter || prev.social_links.twitter,
+          website: profile.social_links?.website || prev.social_links.website,
+        },
       }));
     }
   }, [profile]);
@@ -153,8 +167,14 @@ export const ProfileSetup: React.FC = () => {
     if (!user) return;
     const path = `users/${user.uid}`;
     try {
+      const dataToSave = { ...formData };
+      // Ensure phone number is stored in E.164 format if it's a 10-digit Indian number
+      if (dataToSave.phone_number && dataToSave.phone_number.length === 10 && !dataToSave.phone_number.startsWith('+')) {
+        dataToSave.phone_number = `+91${dataToSave.phone_number}`;
+      }
+
       await setDoc(doc(db, 'users', user.uid), {
-        ...formData,
+        ...dataToSave,
         uid: user.uid,
         email: user.email,
         age: parseInt(formData.age) || 0,
@@ -218,15 +238,30 @@ export const ProfileSetup: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
-                <input
-                  type="number"
-                  value={formData.age}
-                  onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  placeholder="25"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+                  <input
+                    type="number"
+                    value={formData.age}
+                    onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    placeholder="25"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                  <select
+                    value={formData.gender}
+                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                  >
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                    <option value="prefer_not_to_say">Prefer not to say</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -351,10 +386,70 @@ export const ProfileSetup: React.FC = () => {
                 <textarea
                   value={formData.bio}
                   onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  rows={4}
+                  rows={3}
                   className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
                   placeholder="Tell us about yourself..."
                 />
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-gray-900">Social Links (Optional)</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Instagram</label>
+                    <input
+                      type="text"
+                      value={formData.social_links.instagram}
+                      onChange={(e) => setFormData({ 
+                        ...formData, 
+                        social_links: { ...formData.social_links, instagram: e.target.value } 
+                      })}
+                      className="w-full px-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                      placeholder="@username"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">LinkedIn</label>
+                    <input
+                      type="text"
+                      value={formData.social_links.linkedin}
+                      onChange={(e) => setFormData({ 
+                        ...formData, 
+                        social_links: { ...formData.social_links, linkedin: e.target.value } 
+                      })}
+                      className="w-full px-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                      placeholder="linkedin.com/in/..."
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Twitter</label>
+                    <input
+                      type="text"
+                      value={formData.social_links.twitter}
+                      onChange={(e) => setFormData({ 
+                        ...formData, 
+                        social_links: { ...formData.social_links, twitter: e.target.value } 
+                      })}
+                      className="w-full px-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                      placeholder="@username"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Website</label>
+                    <input
+                      type="text"
+                      value={formData.social_links.website}
+                      onChange={(e) => setFormData({ 
+                        ...formData, 
+                        social_links: { ...formData.social_links, website: e.target.value } 
+                      })}
+                      className="w-full px-4 py-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                      placeholder="https://..."
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="flex space-x-4">

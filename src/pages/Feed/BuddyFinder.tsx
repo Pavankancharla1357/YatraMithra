@@ -147,7 +147,7 @@ export const BuddyFinder: React.FC = () => {
         await addDoc(collection(db, 'messages'), {
           channel_id: newChannelRef.id,
           sender_id: 'system',
-          sender_name: 'WanderMatch Bot',
+          sender_name: 'YatraMitra Bot',
           content: context 
             ? `👋 Hi! ${profile?.name || 'Someone'} is interested in your post: "${context.substring(0, 50)}..."`
             : `👋 Hi! ${profile?.name || 'Someone'} wants to connect with you.`,

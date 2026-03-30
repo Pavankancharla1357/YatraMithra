@@ -56,7 +56,7 @@ export const UserProfile: React.FC = () => {
         await addDoc(collection(db, 'messages'), {
           channel_id: newChannelRef.id,
           sender_id: 'system',
-          sender_name: 'WanderMatch Bot',
+          sender_name: 'YatraMitra Bot',
           content: `👋 Hi! ${currentUserProfile?.name || 'Someone'} started a conversation with you.`,
           message_type: 'system',
           created_at: serverTimestamp()
