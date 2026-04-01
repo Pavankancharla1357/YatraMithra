@@ -59,6 +59,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
 
     const docRef = doc(db, 'users', user.uid);
+    
+    // Update presence
+    const updatePresence = async (online: boolean) => {
+      try {
+        await setDoc(docRef, {
+          is_online: online,
+          last_seen: new Date().toISOString()
+        }, { merge: true });
+      } catch (e) {
+        console.error('Error updating presence:', e);
+      }
+    };
+
+    updatePresence(true);
+
     const unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         setProfile(docSnap.data());

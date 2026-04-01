@@ -332,15 +332,15 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({ tripId, isMe
       </AnimatePresence>
 
       {/* Day Tabs */}
-      <div className="flex items-center space-x-2 overflow-x-auto pb-2 scrollbar-hide">
+      <div className="flex items-center space-x-3 overflow-x-auto pb-4 scrollbar-hide -mx-2 px-2">
         {days.map(day => (
           <button
             key={day}
             onClick={() => setActiveDay(day)}
-            className={`px-6 py-3 rounded-2xl font-bold text-sm whitespace-nowrap transition-all ${
+            className={`px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest whitespace-nowrap transition-all border-2 ${
               activeDay === day 
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' 
-                : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xl shadow-indigo-100 scale-105' 
+                : 'bg-white text-gray-400 border-gray-100 hover:border-indigo-100 hover:text-indigo-600'
             }`}
           >
             Day {day}
@@ -354,7 +354,7 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({ tripId, isMe
               setIsAdding(true);
               setNewItem(prev => ({ ...prev, day: nextDay }));
             }}
-            className="p-3 bg-gray-50 text-gray-400 rounded-2xl hover:bg-gray-100 transition-all"
+            className="p-4 bg-gray-50 text-gray-400 rounded-2xl hover:bg-indigo-50 hover:text-indigo-600 transition-all border-2 border-dashed border-gray-200"
             title="Add Day"
           >
             <Plus className="w-5 h-5" />
@@ -368,33 +368,40 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({ tripId, isMe
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="bg-gray-50 p-8 rounded-[2rem] border border-gray-100 shadow-inner"
+            className="bg-white p-8 rounded-[2.5rem] border-2 border-indigo-50 shadow-2xl shadow-indigo-100/20"
           >
-            <form onSubmit={handleAddItem} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Activity Title</label>
+            <div className="flex items-center justify-between mb-8">
+              <h4 className="text-lg font-black text-gray-900 tracking-tight">Propose Activity for Day {newItem.day}</h4>
+              <button onClick={() => setIsAdding(false)} className="p-2 text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddItem} className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Activity Title</label>
                   <input
                     type="text"
                     value={newItem.title}
                     onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
                     placeholder="e.g., Sunrise at the Beach"
-                    className="w-full px-5 py-4 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold text-gray-900"
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Activity Type</label>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Activity Type</label>
                   <div className="flex flex-wrap gap-2">
                     {ACTIVITY_TYPES.map(type => (
                       <button
                         key={type.id}
                         type="button"
                         onClick={() => setNewItem({ ...newItem, type: type.id })}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                        className={`px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
                           newItem.type === type.id 
-                            ? 'bg-indigo-600 text-white border-indigo-600' 
-                            : 'bg-white text-gray-500 border-gray-100 hover:border-indigo-200'
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100' 
+                            : 'bg-white text-gray-400 border-gray-100 hover:border-indigo-200'
                         }`}
                       >
                         {type.label}
@@ -404,59 +411,59 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({ tripId, isMe
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-1 space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Location</label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Location</label>
                   <div className="relative">
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                       type="text"
                       value={newItem.location}
                       onChange={(e) => setNewItem({ ...newItem, location: e.target.value })}
                       placeholder="Where is it?"
-                      className="w-full pl-12 pr-5 py-4 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                      className="w-full pl-14 pr-6 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold text-gray-900"
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Time</label>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Time</label>
                   <div className="relative">
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Clock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                       type="text"
                       value={newItem.time}
                       onChange={(e) => setNewItem({ ...newItem, time: e.target.value })}
                       placeholder="e.g., 10:00 AM"
-                      className="w-full pl-12 pr-5 py-4 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                      className="w-full pl-14 pr-6 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold text-gray-900"
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Budget</label>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Budget</label>
                   <div className="relative">
-                    <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <IndianRupee className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                       type="text"
                       value={newItem.budget}
                       onChange={(e) => setNewItem({ ...newItem, budget: e.target.value })}
                       placeholder="e.g., ₹500"
-                      className="w-full pl-12 pr-5 py-4 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                      className="w-full pl-14 pr-6 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all font-bold text-gray-900"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-4 pt-2">
+              <div className="flex justify-end space-x-4 pt-4">
                 <button
                   type="button"
                   onClick={() => setIsAdding(false)}
-                  className="px-6 py-3 text-gray-500 font-bold hover:text-gray-700 transition-all"
+                  className="px-8 py-4 text-gray-400 font-black uppercase tracking-widest text-[10px] hover:text-gray-600 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-8 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                  className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100"
                 >
                   Propose Activity
                 </button>
@@ -469,21 +476,21 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({ tripId, isMe
       <div className="relative">
         {/* Timeline Line */}
         {filteredItems.length > 0 && (
-          <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-100 -z-10" />
+          <div className="absolute left-8 top-0 bottom-0 w-1 bg-gray-50 -z-10 rounded-full" />
         )}
 
-        <div className="space-y-6">
+        <div className="space-y-8">
           {filteredItems.length === 0 ? (
-            <div className="text-center py-20 bg-gray-50 rounded-[2.5rem] border border-dashed border-gray-200">
-              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
+            <div className="text-center py-24 bg-gray-50 rounded-[3rem] border-2 border-dashed border-gray-200">
+              <div className="w-24 h-24 bg-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-gray-200/50">
                 <CalendarDays className="w-10 h-10 text-gray-200" />
               </div>
-              <h4 className="text-xl font-bold text-gray-900 mb-2">No plans for Day {activeDay} yet</h4>
-              <p className="text-gray-500 max-w-xs mx-auto mb-8">Start proposing activities to build your trip itinerary together.</p>
+              <h4 className="text-2xl font-black text-gray-900 mb-3 tracking-tight">No plans for Day {activeDay} yet</h4>
+              <p className="text-gray-500 max-w-xs mx-auto mb-10 font-medium leading-relaxed">Start proposing activities to build your trip itinerary together.</p>
               {isMember && (
                 <button
                   onClick={() => setIsAdding(true)}
-                  className="px-8 py-4 bg-white border-2 border-indigo-600 text-indigo-600 rounded-2xl font-bold hover:bg-indigo-50 transition-all"
+                  className="px-10 py-5 bg-white border-2 border-indigo-600 text-indigo-600 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-50 transition-all shadow-lg shadow-indigo-50"
                 >
                   Propose First Activity
                 </button>
@@ -504,78 +511,85 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({ tripId, isMe
                   className={`relative flex items-start group ${isConfirmed ? 'opacity-100' : 'opacity-90'}`}
                 >
                   {/* Timeline Node */}
-                  <div className={`mt-6 w-4 h-4 rounded-full border-4 border-white shadow-sm z-10 transition-all ${
-                    isConfirmed ? 'bg-indigo-600 scale-125' : 'bg-gray-300'
+                  <div className={`mt-8 w-5 h-5 rounded-full border-4 border-white shadow-md z-10 transition-all duration-500 ${
+                    isConfirmed ? 'bg-indigo-600 scale-125 ring-4 ring-indigo-50' : 'bg-gray-300'
                   }`} />
 
-                  <div className={`ml-8 flex-1 bg-white p-6 rounded-3xl border transition-all ${
+                  <div className={`ml-10 flex-1 bg-white p-8 rounded-[2.5rem] border-2 transition-all duration-300 ${
                     isConfirmed 
-                      ? 'border-indigo-100 shadow-xl shadow-indigo-50 ring-1 ring-indigo-50' 
-                      : 'border-gray-100 shadow-lg shadow-gray-100/50 hover:border-indigo-100'
+                      ? 'border-indigo-100 shadow-2xl shadow-indigo-100/30 ring-1 ring-indigo-50' 
+                      : 'border-gray-50 shadow-xl shadow-gray-100/30 hover:border-indigo-100 hover:shadow-indigo-100/20'
                   }`}>
-                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center flex-wrap gap-2 mb-3">
-                          <span className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center ${getTypeStyle(item.type)}`}>
+                    <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
+                      <div className="flex-1 w-full">
+                        <div className="flex items-center flex-wrap gap-3 mb-5">
+                          <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-sm ${getTypeStyle(item.type)}`}>
                             {getTypeIcon(item.type)}
-                            <span className="ml-1.5">{item.type}</span>
+                            <span className="ml-2">{item.type}</span>
                           </span>
                           {isConfirmed && (
-                            <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-widest rounded-lg flex items-center">
-                              <Check className="w-3 h-3 mr-1" />
+                            <span className="px-4 py-1.5 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center shadow-sm border border-emerald-100">
+                              <Check className="w-3 h-3 mr-2" strokeWidth={3} />
                               Confirmed
                             </span>
                           )}
                           {item.votes_count >= 3 && !isConfirmed && (
-                            <span className="px-3 py-1 bg-amber-50 text-amber-600 text-[10px] font-bold uppercase tracking-widest rounded-lg flex items-center">
-                              <ThumbsUp className="w-3 h-3 mr-1" />
+                            <span className="px-4 py-1.5 bg-amber-50 text-amber-600 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center shadow-sm border border-amber-100">
+                              <Sparkles className="w-3 h-3 mr-2" />
                               Popular
                             </span>
                           )}
                         </div>
                         
-                        <h4 className={`text-xl font-bold text-gray-900 mb-2 ${isConfirmed ? 'text-indigo-900' : ''}`}>
+                        <h4 className={`text-2xl font-black text-gray-900 mb-4 tracking-tight leading-tight ${isConfirmed ? 'text-indigo-900' : ''}`}>
                           {item.title}
                         </h4>
 
-                        <div className="flex flex-wrap gap-4 text-sm text-gray-500 font-medium">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                           {item.time && (
-                            <div className="flex items-center">
-                              <Clock className="w-4 h-4 mr-2 text-indigo-500" />
-                              {item.time}
+                            <div className="flex items-center p-3 bg-gray-50 rounded-2xl border border-gray-100/50">
+                              <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center mr-3 shadow-sm">
+                                <Clock className="w-4 h-4 text-indigo-500" />
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Time</p>
+                                <p className="text-sm font-bold text-gray-700">{item.time}</p>
+                              </div>
                             </div>
                           )}
                           {item.location && (
-                            <div className="flex items-center">
-                              <MapPin className="w-4 h-4 mr-2 text-indigo-500" />
-                              {item.location}
-                            </div>
-                          )}
-                          {item.budget && (
-                            <div className="flex items-center text-emerald-600">
-                              <IndianRupee className="w-4 h-4 mr-1 text-emerald-500" />
-                              {item.budget}
+                            <div className="flex items-center p-3 bg-gray-50 rounded-2xl border border-gray-100/50">
+                              <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center mr-3 shadow-sm">
+                                <MapPin className="w-4 h-4 text-indigo-500" />
+                              </div>
+                              <div className="truncate">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Location</p>
+                                <p className="text-sm font-bold text-gray-700 truncate">{item.location}</p>
+                              </div>
                             </div>
                           )}
                         </div>
                         
-                        <div className="mt-4 pt-4 border-t border-gray-50 flex items-center justify-between">
+                        <div className="flex items-center justify-between pt-6 border-t border-gray-50">
                           <div className="flex items-center">
-                            <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center mr-2 text-[10px] font-bold text-gray-500">
+                            <div className="w-8 h-8 bg-indigo-50 rounded-xl flex items-center justify-center mr-3 text-xs font-black text-indigo-600 border border-indigo-100">
                               {item.created_by_name?.charAt(0)}
                             </div>
-                            <span className="text-xs text-gray-400 font-medium">Proposed by {item.created_by_name}</span>
+                            <div>
+                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Proposed By</p>
+                              <p className="text-xs font-bold text-gray-600">{item.created_by_name}</p>
+                            </div>
                           </div>
                           
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-3">
                             <button 
                               onClick={() => setExpandedItem(expandedItem === item.id ? null : item.id)}
-                              className={`p-2 rounded-xl transition-all ${expandedItem === item.id ? 'bg-indigo-50 text-indigo-600' : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                              className={`p-3 rounded-2xl transition-all relative ${expandedItem === item.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-gray-50 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600'}`}
                               title="Comments"
                             >
                               <MessageSquare className="w-5 h-5" />
                               {item.comments?.length > 0 && (
-                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-600 text-white text-[8px] flex items-center justify-center rounded-full">
+                                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-white">
                                   {item.comments.length}
                                 </span>
                               )}
@@ -583,10 +597,10 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({ tripId, isMe
                             {isOrganizer && (
                               <button
                                 onClick={() => handleConfirm(item.id, item.status)}
-                                className={`p-2 rounded-xl transition-all ${
+                                className={`p-3 rounded-2xl transition-all ${
                                   isConfirmed 
-                                    ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' 
-                                    : 'bg-gray-50 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600'
+                                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' 
+                                    : 'bg-gray-50 text-gray-400 hover:bg-emerald-50 hover:text-emerald-600'
                                 }`}
                                 title={isConfirmed ? "Unconfirm Activity" : "Confirm Activity"}
                               >
@@ -596,7 +610,7 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({ tripId, isMe
                             {(isCreator || isOrganizer) && (
                               <button
                                 onClick={() => handleDelete(item.id)}
-                                className="p-2 text-gray-300 hover:text-red-500 transition-all"
+                                className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
                                 title="Delete Activity"
                               >
                                 <Trash2 className="w-5 h-5" />
@@ -612,52 +626,55 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({ tripId, isMe
                               initial={{ opacity: 0, height: 0 }}
                               animate={{ opacity: 1, height: 'auto' }}
                               exit={{ opacity: 0, height: 0 }}
-                              className="mt-6 pt-6 border-t border-gray-100 overflow-hidden"
+                              className="mt-8 pt-8 border-t border-gray-100 overflow-hidden"
                             >
-                              <div className="space-y-4 mb-6">
+                              <div className="space-y-6 mb-8">
                                 {item.comments && item.comments.length > 0 ? (
                                   item.comments.map((comment: any) => (
-                                    <div key={comment.id} className="flex space-x-3">
-                                      <div className="w-8 h-8 bg-gray-100 rounded-xl flex-shrink-0 overflow-hidden">
+                                    <div key={comment.id} className="flex space-x-4">
+                                      <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex-shrink-0 overflow-hidden border border-indigo-100 shadow-sm">
                                         {comment.userPhoto ? (
                                           <img src={comment.userPhoto} alt={comment.userName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                         ) : (
-                                          <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-gray-400">
+                                          <div className="w-full h-full flex items-center justify-center text-xs font-black text-indigo-400">
                                             {comment.userName.charAt(0)}
                                           </div>
                                         )}
                                       </div>
-                                      <div className="flex-1 bg-gray-50 p-3 rounded-2xl">
-                                        <div className="flex items-center justify-between mb-1">
-                                          <span className="text-xs font-bold text-gray-900">{comment.userName}</span>
-                                          <span className="text-[10px] text-gray-400">
+                                      <div className="flex-1 bg-gray-50 p-5 rounded-3xl border border-gray-100/50">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <span className="text-xs font-black text-gray-900">{comment.userName}</span>
+                                          <span className="text-[10px] font-bold text-gray-400">
                                             {new Date(comment.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                           </span>
                                         </div>
-                                        <p className="text-xs text-gray-600 leading-relaxed">{comment.text}</p>
+                                        <p className="text-sm text-gray-600 leading-relaxed font-medium">{comment.text}</p>
                                       </div>
                                     </div>
                                   ))
                                 ) : (
-                                  <p className="text-center text-xs text-gray-400 py-4 italic">No comments yet. Start the discussion!</p>
+                                  <div className="text-center py-8 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
+                                    <MessageSquare className="w-8 h-8 text-gray-200 mx-auto mb-3" />
+                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">No comments yet</p>
+                                  </div>
                                 )}
                               </div>
 
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center space-x-3 bg-gray-50 p-2 rounded-2xl border border-gray-100">
                                 <input
                                   type="text"
                                   value={newComment[item.id] || ''}
                                   onChange={(e) => setNewComment({ ...newComment, [item.id]: e.target.value })}
                                   placeholder="Add a comment..."
                                   onKeyPress={(e) => e.key === 'Enter' && handleAddComment(item.id)}
-                                  className="flex-1 px-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                  className="flex-1 px-5 py-3 bg-white border-none rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700"
                                 />
                                 <button
                                   onClick={() => handleAddComment(item.id)}
                                   disabled={!newComment[item.id]?.trim()}
-                                  className="p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50"
+                                  className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-indigo-100"
                                 >
-                                  <Send className="w-4 h-4" />
+                                  <Send className="w-5 h-5" />
                                 </button>
                               </div>
                             </motion.div>
@@ -665,21 +682,32 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({ tripId, isMe
                         </AnimatePresence>
                       </div>
 
-                      <div className="flex flex-col items-center sm:pl-6 sm:border-l border-gray-50 min-w-[80px]">
-                        <button
-                          onClick={() => handleVote(item.id, hasVoted)}
-                          disabled={!isMember}
-                          className={`w-14 h-14 rounded-2xl transition-all flex items-center justify-center ${
-                            hasVoted 
-                              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 scale-110' 
-                              : 'bg-gray-50 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600'
-                          } disabled:opacity-50`}
-                        >
-                          <ThumbsUp className={`w-6 h-6 ${hasVoted ? 'fill-white' : ''}`} />
-                        </button>
-                        <span className="mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                          {item.votes_count} votes
-                        </span>
+                      <div className="flex flex-row lg:flex-col items-center justify-between lg:justify-center lg:pl-8 lg:border-l border-gray-50 min-w-[120px] w-full lg:w-auto pt-6 lg:pt-0 border-t lg:border-t-0">
+                        <div className="flex flex-col items-center">
+                          <button
+                            onClick={() => handleVote(item.id, hasVoted)}
+                            disabled={!isMember}
+                            className={`w-16 h-16 rounded-[2rem] transition-all flex items-center justify-center ${
+                              hasVoted 
+                                ? 'bg-indigo-600 text-white shadow-2xl shadow-indigo-200 scale-110' 
+                                : 'bg-gray-50 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-100'
+                            } disabled:opacity-50`}
+                          >
+                            <ThumbsUp className={`w-7 h-7 ${hasVoted ? 'fill-white' : ''}`} />
+                          </button>
+                          <span className="mt-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                            {item.votes_count} votes
+                          </span>
+                        </div>
+                        
+                        {item.budget && (
+                          <div className="lg:mt-8 flex flex-col items-center">
+                            <div className="w-10 h-10 bg-emerald-50 rounded-2xl flex items-center justify-center mb-2 border border-emerald-100">
+                              <IndianRupee className="w-5 h-5 text-emerald-600" />
+                            </div>
+                            <span className="text-sm font-black text-emerald-700">{item.budget}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

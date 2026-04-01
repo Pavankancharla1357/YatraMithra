@@ -247,12 +247,25 @@
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["user_id", "type", "confidence", "summary", "details", "created_at"]
+    },
+    "ChatSettings": {
+      "title": "Chat Settings",
+      "description": "User-specific settings for a chat channel (pinned, muted, archived, deleted)",
+      "type": "object",
+      "properties": {
+        "pinned": { "type": "boolean" },
+        "muted": { "type": "boolean" },
+        "archived": { "type": "boolean" },
+        "deleted": { "type": "boolean" },
+        "deleted_at": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "firestore": {
     "/users/{userId}": { "schema": "User", "description": "User profiles" },
     "/users/{userId}/safety_contacts/{contactId}": { "schema": "SafetyContact", "description": "User emergency contacts" },
     "/users/{userId}/documents/{documentId}": { "schema": "ScannedDocument", "description": "User's scanned travel documents" },
+    "/users/{userId}/chat_settings/{chatId}": { "schema": "ChatSettings", "description": "User-specific chat settings" },
     "/trips/{tripId}": { "schema": "Trip", "description": "Trips" },
     "/trips/{tripId}/members/{memberId}": { "schema": "TripMember", "description": "Trip members" },
     "/trips/{tripId}/expenses/{expenseId}": { "schema": "Expense", "description": "Trip expenses" },

@@ -2,6 +2,7 @@ import { db } from '../firebase';
 import { 
   doc, 
   getDoc, 
+  setDoc,
   updateDoc, 
   increment, 
   collection, 
@@ -83,7 +84,7 @@ export const joinTripViaInvite = async (
       });
     } else {
       // Create new member record
-      await addDoc(collection(db, 'trip_members'), {
+      await setDoc(doc(db, 'trip_members', `${userId}_${tripId}`), {
         trip_id: tripId,
         user_id: userId,
         user_name: userProfile?.name || 'Traveler',

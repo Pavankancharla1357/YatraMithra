@@ -53,9 +53,15 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() &&
-        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-          (request.auth.token.email == "pavankancharla1357@gmail.com" && request.auth.token.email_verified == true));
+        (request.auth.token.email == "pavankancharla1357@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isTripOrganizer(tripData) {
+      return isAuthenticated() && request.auth.uid == tripData.organizer_id;
+    }
+
+    function isTripMember(tripId) {
+      return isAuthenticated() && exists(/databases/$(database)/documents/trip_members/$(request.auth.uid + '_' + tripId));
     }
 
     function isValidEmail(email) {
@@ -105,10 +111,6 @@ service cloud.firestore {
              (!('invite_count' in data) || data.invite_count is int);
     }
 
-    // ===============================================================
-    // Rules
-    // ===============================================================
-
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isOwner(userId) && request.resource.data.uid == request.auth.uid;
@@ -125,16 +127,18 @@ service cloud.firestore {
         allow update: if isOwner(userId) && isValidScannedDocument(request.resource.data);
         allow delete: if isOwner(userId);
       }
+
+      match /chat_settings/{chatId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     match /trips/{tripId} {
-      allow read: if (
-        (!('settings' in resource.data) || resource.data.settings.privacy == 'public') ||
-        (isAuthenticated() && (
-          request.auth.uid == resource.data.organizer_id ||
-          exists(/databases/$(database)/documents/trip_members/$(request.auth.uid + '_' + tripId)) || 
-          isAdmin()
-        ))
+      allow read: if isAuthenticated() && (
+        isTripOrganizer(resource.data) ||
+        isTripMember(tripId) ||
+        isAdmin() ||
+        (!('settings' in resource.data) || !('privacy' in resource.data.settings) || resource.data.settings.privacy == 'public')
       );
       
       allow create: if isAuthenticated() && 

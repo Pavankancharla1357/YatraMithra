@@ -12,12 +12,11 @@ import { Register } from './pages/Auth/Register';
 import { ForgotPassword } from './pages/Auth/ForgotPassword';
 import { ResetPassword } from './pages/Auth/ResetPassword';
 import { ProfileSetup } from './pages/Profile/ProfileSetup';
-import { Profile } from './pages/Profile/Profile';
-import { UserProfile } from './pages/Profile/UserProfile';
+import { ProfilePage } from './pages/Profile/ProfilePage';
 import { Dashboard } from './pages/Dashboard/Dashboard';
 import { DiscoverTrips } from './pages/Trips/DiscoverTrips';
 import { CreateTrip } from './pages/Trips/CreateTrip';
-import { TripDetails } from './pages/Trips/TripDetails';
+import TripDetails from './pages/Trips/TripDetails';
 import { JoinTrip } from './pages/Trips/JoinTrip';
 import { TripExpenses } from './pages/Trips/TripExpenses';
 import { DocumentVault } from './pages/Trips/DocumentVault';
@@ -134,11 +133,11 @@ export default function App() {
                 path="/profile" 
                 element={
                   <ProtectedRoute>
-                    <Profile />
+                    <ProfilePage />
                   </ProtectedRoute>
                 } 
               />
-              <Route path="/profile/:uid" element={<UserProfile />} />
+              <Route path="/profile/:uid" element={<ProfilePage />} />
               <Route 
                 path="/dashboard" 
                 element={

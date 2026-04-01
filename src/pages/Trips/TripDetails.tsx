@@ -41,7 +41,18 @@ import {
   Map as MapIcon, 
   Heart,
   AlertCircle,
-  Lock
+  Lock,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle,
+  XCircle,
+  Info,
+  HelpCircle,
+  Clock,
+  Wallet,
+  TrendingUp,
+  Award,
+  ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -98,7 +109,59 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 
 import { subscribeToUserRating } from '../../services/reviewService';
 
-export const TripDetails: React.FC = () => {
+export const CollapsibleCard = ({ 
+  title, 
+  icon: Icon, 
+  isOpen, 
+  onToggle, 
+  children,
+  badge
+}: { 
+  title: string; 
+  icon: any; 
+  isOpen: boolean; 
+  onToggle: () => void; 
+  children: React.ReactNode;
+  badge?: string;
+}) => (
+  <div className="bg-white rounded-[2rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden transition-all duration-300">
+    <button 
+      onClick={onToggle}
+      className="w-full flex items-center justify-between p-6 md:p-8 hover:bg-gray-50 transition-all"
+    >
+      <div className="flex items-center space-x-4">
+        <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+          <Icon className="w-6 h-6" />
+        </div>
+        <div className="text-left">
+          <h3 className="text-xl font-black text-gray-900 tracking-tight">{title}</h3>
+          {badge && <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">{badge}</span>}
+        </div>
+      </div>
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isOpen ? 'bg-indigo-600 text-white rotate-180' : 'bg-gray-100 text-gray-400'}`}>
+        <ChevronDown className="w-5 h-5" />
+      </div>
+    </button>
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="px-6 pb-8 md:px-8 md:pb-10 pt-0 border-t border-gray-50">
+            <div className="prose prose-indigo max-w-none text-gray-600 leading-relaxed text-sm md:text-base">
+              {children}
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+);
+
+const TripDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user, profile: currentUserProfile } = useAuth();
   const navigate = useNavigate();
@@ -114,6 +177,45 @@ export const TripDetails: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'itinerary'>('overview');
   const [messaging, setMessaging] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    overview: true,
+    itinerary: true,
+    includes: true,
+    excludes: true,
+    notes: true,
+    whyJoin: true
+  });
+  const [expandedDays, setExpandedDays] = useState<Record<number, boolean>>({});
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const toggleDay = (day: number) => {
+    setExpandedDays(prev => ({ ...prev, [day]: !prev[day] }));
+  };
+
+  const parseItinerary = (text: string) => {
+    if (!text) return [];
+    // Split by "Day X" or "DayX" (case insensitive)
+    const dayMarkers = text.match(/Day\s*\d+/gi);
+    if (!dayMarkers) return [{ day: 1, title: 'Full Itinerary', content: text }];
+
+    const days = text.split(/Day\s*\d+[:\-–]?/gi).filter(Boolean);
+    return days.map((content, index) => {
+      const marker = dayMarkers[index] || `Day ${index + 1}`;
+      const firstLine = content.trim().split('\n')[0];
+      const title = firstLine.length < 50 ? firstLine : 'Activities';
+      const remainingContent = firstLine.length < 50 ? content.trim().split('\n').slice(1).join('\n') : content.trim();
+      
+      return {
+        day: index + 1,
+        marker,
+        title,
+        content: remainingContent
+      };
+    });
+  };
 
   const getDestinationImage = (city: string) => {
     if (!city) return 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80';
@@ -674,30 +776,116 @@ export const TripDetails: React.FC = () => {
         )}
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-20 relative z-10">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 relative z-10">
+        {/* Trip Summary Card */}
+        <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl shadow-indigo-100/50 border border-indigo-50 mb-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex-1">
+              <div className="flex flex-wrap gap-2 mb-4">
+                <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-full">
+                  {trip.travel_style?.replace('_', ' ')}
+                </span>
+                <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-full">
+                  {trip.status}
+                </span>
+                {trip.is_women_only && (
+                  <span className="px-3 py-1 bg-pink-50 text-pink-600 text-[10px] font-black uppercase tracking-widest rounded-full flex items-center">
+                    <Heart className="w-3 h-3 mr-1 fill-pink-600" />
+                    Women Only
+                  </span>
+                )}
+              </div>
+              <h1 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tight mb-2">
+                {trip.destination_city}, <span className="text-indigo-600">{trip.destination_country}</span>
+              </h1>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-gray-500 font-medium">
+                <div className="flex items-center">
+                  <Calendar className="w-4 h-4 mr-2 text-indigo-500" />
+                  <span>{new Date(trip.start_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} - {new Date(trip.end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                </div>
+                <div className="flex items-center">
+                  <Users className="w-4 h-4 mr-2 text-indigo-500" />
+                  <span>{trip.current_members}/{trip.max_members} Spots Filled</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex flex-col items-end">
+              <div className="text-right mb-4">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Starting from</span>
+                <div className="flex items-baseline justify-end space-x-1">
+                  <span className="text-3xl font-black text-gray-900">₹{trip.budget_max.toLocaleString()}</span>
+                  <span className="text-xs font-bold text-gray-400">/person</span>
+                </div>
+              </div>
+              <div className="flex gap-3 w-full md:w-auto">
+                {!(isOrganizer || memberStatus === 'approved') && memberStatus !== 'pending' && (
+                  <button
+                    onClick={() => setShowJoinModal(true)}
+                    className="flex-1 md:flex-none px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center"
+                  >
+                    Join Trip <ArrowRight className="w-4 h-4 ml-2" />
+                  </button>
+                )}
+                {(isOrganizer || memberStatus === 'approved') && (
+                  <button
+                    onClick={() => navigate(`/messages/${trip.id}`)}
+                    className="flex-1 md:flex-none px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 flex items-center justify-center"
+                  >
+                    Group Chat <MessageSquare className="w-4 h-4 ml-2" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sticky Action Bar (Mobile) */}
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-xl border-t border-gray-100 z-50 md:hidden flex items-center justify-between gap-4">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Budget</span>
+            <span className="text-lg font-black text-gray-900">₹{trip.budget_max.toLocaleString()}</span>
+          </div>
+          <div className="flex gap-2 flex-1 justify-end">
+            {!(isOrganizer || memberStatus === 'approved') && memberStatus !== 'pending' ? (
+              <button
+                onClick={() => setShowJoinModal(true)}
+                className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-200"
+              >
+                Join Now
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate(`/messages/${trip.id}`)}
+                className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-200"
+              >
+                Chat
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Tabs */}
-        <div className="flex space-x-4 mb-8">
+        <div className="flex p-1.5 bg-gray-100 rounded-2xl mb-8 w-fit">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`px-8 py-4 rounded-2xl font-bold flex items-center space-x-2 transition-all shadow-xl ${
+            className={`px-8 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all ${
               activeTab === 'overview' 
-                ? 'bg-indigo-600 text-white shadow-indigo-100' 
-                : 'bg-white text-gray-500 hover:bg-gray-50 shadow-gray-200/50'
+                ? 'bg-white text-indigo-600 shadow-sm' 
+                : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            <LayoutGrid className="w-5 h-5" />
-            <span>Overview</span>
+            Overview
           </button>
           <button
             onClick={() => setActiveTab('itinerary')}
-            className={`px-8 py-4 rounded-2xl font-bold flex items-center space-x-2 transition-all shadow-xl ${
+            className={`px-8 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all ${
               activeTab === 'itinerary' 
-                ? 'bg-indigo-600 text-white shadow-indigo-100' 
-                : 'bg-white text-gray-500 hover:bg-gray-50 shadow-gray-200/50'
+                ? 'bg-white text-indigo-600 shadow-sm' 
+                : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            <MapIcon className="w-5 h-5" />
-            <span>Itinerary</span>
+            Itinerary
           </button>
         </div>
 
@@ -705,95 +893,134 @@ export const TripDetails: React.FC = () => {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {activeTab === 'overview' ? (
-              <>
-                <div className="bg-white p-8 rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100">
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <span className="px-3 py-1 bg-indigo-50 text-indigo-600 text-xs font-bold rounded-full uppercase tracking-wider">
-                      {trip.travel_style?.replace('_', ' ')}
-                    </span>
-                    <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-xs font-bold rounded-full uppercase tracking-wider">
-                      {trip.status}
-                    </span>
-                    {trip.is_women_only && (
-                      <span className="px-3 py-1 bg-pink-50 text-pink-600 text-xs font-bold rounded-full uppercase tracking-wider flex items-center">
-                        <Heart className="w-3 h-3 mr-1 fill-pink-600" />
-                        Women Only
-                      </span>
-                    )}
-                  </div>
-                  <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-4">
-                    {trip.destination_city}, {trip.destination_country}
-                  </h1>
-                  
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-6 border-y border-gray-50">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Dates</span>
-                      <div className="flex items-center text-sm font-bold text-gray-900">
-                        <Calendar className="w-4 h-4 mr-2 text-indigo-600" />
-                        {new Date(trip.start_date).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Budget</span>
-                      <div className="flex items-center text-sm font-bold text-gray-900">
-                        <IndianRupee className="w-4 h-4 mr-2 text-indigo-600" />
-                        ₹{trip.budget_max}
-                      </div>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Group Size</span>
-                      <div className="flex items-center text-sm font-bold text-gray-900">
-                        <Users className="w-4 h-4 mr-2 text-indigo-600" />
-                        {trip.max_members} max
-                      </div>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Status</span>
-                      <div className="flex items-center text-sm font-bold text-indigo-600">
-                        <Check className="w-4 h-4 mr-2" />
-                        {trip.status}
-                      </div>
-                    </div>
-                  </div>
+              <div className="space-y-6">
+                <CollapsibleCard 
+                  title="Overview" 
+                  icon={Info} 
+                  isOpen={expandedSections.overview} 
+                  onToggle={() => toggleSection('overview')}
+                >
+                  <p className="whitespace-pre-wrap">{trip.description}</p>
+                </CollapsibleCard>
 
-                  <div className="mt-8">
-                    <h3 className="text-xl font-bold text-gray-900 mb-4">Trip Description</h3>
-                    <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
-                      {trip.description}
+                {trip.itinerary && (
+                  <CollapsibleCard 
+                    title="Itinerary" 
+                    icon={MapIcon} 
+                    isOpen={expandedSections.itinerary} 
+                    onToggle={() => toggleSection('itinerary')}
+                    badge={`${parseItinerary(trip.itinerary).length} Days`}
+                  >
+                    <div className="space-y-4">
+                      {parseItinerary(trip.itinerary).map((day, idx) => (
+                        <div key={idx} className="border border-gray-100 rounded-2xl overflow-hidden">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); toggleDay(idx); }}
+                            className="w-full flex items-center justify-between p-4 bg-gray-50/50 hover:bg-gray-50 transition-all"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 bg-indigo-600 text-white rounded-lg flex items-center justify-center text-xs font-black">
+                                {day.day}
+                              </div>
+                              <span className="font-bold text-gray-900">{day.title}</span>
+                            </div>
+                            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${expandedDays[idx] ? 'rotate-180' : ''}`} />
+                          </button>
+                          <AnimatePresence>
+                            {expandedDays[idx] && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="px-4 py-4 bg-white border-t border-gray-50"
+                              >
+                                <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
+                                  {day.content}
+                                </p>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      ))}
+                    </div>
+                  </CollapsibleCard>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <CollapsibleCard 
+                    title="What's Included" 
+                    icon={CheckCircle} 
+                    isOpen={expandedSections.includes} 
+                    onToggle={() => toggleSection('includes')}
+                  >
+                    <ul className="space-y-2">
+                      {trip.includes?.split('\n').filter(Boolean).map((item, i) => (
+                        <li key={i} className="flex items-start">
+                          <CheckCircle className="w-4 h-4 mr-2 text-emerald-500 mt-0.5 shrink-0" />
+                          <span>{item}</span>
+                        </li>
+                      )) || <li className="text-gray-400 italic">No inclusions listed</li>}
+                    </ul>
+                  </CollapsibleCard>
+
+                  <CollapsibleCard 
+                    title="What's Excluded" 
+                    icon={XCircle} 
+                    isOpen={expandedSections.excludes} 
+                    onToggle={() => toggleSection('excludes')}
+                  >
+                    <ul className="space-y-2">
+                      {trip.excludes?.split('\n').filter(Boolean).map((item, i) => (
+                        <li key={i} className="flex items-start">
+                          <XCircle className="w-4 h-4 mr-2 text-red-400 mt-0.5 shrink-0" />
+                          <span>{item}</span>
+                        </li>
+                      )) || <li className="text-gray-400 italic">No exclusions listed</li>}
+                    </ul>
+                  </CollapsibleCard>
+                </div>
+
+                <CollapsibleCard 
+                  title="Important Notes" 
+                  icon={AlertCircle} 
+                  isOpen={expandedSections.notes} 
+                  onToggle={() => toggleSection('notes')}
+                >
+                  <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 flex items-start space-x-3">
+                    <HelpCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-sm text-amber-800 leading-relaxed">
+                      {trip.important_notes || "Please contact the organizer for specific requirements or health considerations."}
                     </p>
                   </div>
+                </CollapsibleCard>
 
-                  {trip.destination_lat && trip.destination_lng && (
-                    <div className="mt-8 pt-8 border-t border-gray-50">
-                      <TripMap 
-                        lat={trip.destination_lat} 
-                        lng={trip.destination_lng} 
-                        destination={trip.destination_city} 
-                      />
-                    </div>
-                  )}
-
-                  {trip.itinerary && (
-                    <div className="mt-8 pt-8 border-t border-gray-50">
-                      <h3 className="text-xl font-bold text-gray-900 mb-4">Initial Itinerary</h3>
-                      <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                        <p className="text-gray-600 leading-relaxed whitespace-pre-wrap text-sm">
-                          {trip.itinerary}
-                        </p>
+                <div className="bg-indigo-600 p-8 rounded-[2.5rem] text-white relative overflow-hidden">
+                  <div className="relative z-10">
+                    <h3 className="text-2xl font-black mb-4 tracking-tight">Why join this trip?</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="flex items-center space-x-3 bg-white/10 p-4 rounded-2xl backdrop-blur-md">
+                        <Award className="w-6 h-6 text-indigo-200" />
+                        <span className="text-sm font-bold">Verified Organizer</span>
+                      </div>
+                      <div className="flex items-center space-x-3 bg-white/10 p-4 rounded-2xl backdrop-blur-md">
+                        <TrendingUp className="w-6 h-6 text-indigo-200" />
+                        <span className="text-sm font-bold">Best Value for Money</span>
                       </div>
                     </div>
-                  )}
+                  </div>
+                  <div className="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-white/10 rounded-full blur-3xl" />
+                  <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-32 h-32 bg-indigo-400/20 rounded-full blur-3xl" />
                 </div>
 
                 {isOrganizer && members.some(m => m.status === 'pending') && (
-                  <div className="bg-amber-50 p-8 rounded-3xl border border-amber-100 mb-8">
-                    <h3 className="text-xl font-bold text-amber-900 mb-6 flex items-center">
+                  <div className="bg-amber-50 p-8 rounded-[2.5rem] border border-amber-100">
+                    <h3 className="text-xl font-black text-amber-900 mb-6 flex items-center tracking-tight">
                       <AlertCircle className="w-5 h-5 mr-2" />
                       Pending Requests
                     </h3>
                     <div className="space-y-4">
                       {members.filter(m => m.status === 'pending').map((member) => (
-                        <div key={member.uid} className="bg-white p-4 rounded-2xl flex items-center justify-between shadow-sm">
+                        <div key={member.uid} className="bg-white p-4 rounded-2xl flex items-center justify-between shadow-sm border border-amber-100/50">
                           <div className="flex items-center space-x-4">
                             <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center overflow-hidden">
                               {member.photo_url ? (
@@ -810,13 +1037,13 @@ export const TripDetails: React.FC = () => {
                           <div className="flex space-x-2">
                             <button
                               onClick={() => handleApproveMember(member.uid)}
-                              className="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-all"
+                              className="px-4 py-2 bg-emerald-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-all"
                             >
                               Approve
                             </button>
                             <button
                               onClick={() => handleRejectMember(member.uid)}
-                              className="px-4 py-2 bg-white text-red-600 text-sm font-bold rounded-xl border border-red-100 hover:bg-red-50 transition-all"
+                              className="px-4 py-2 bg-white text-red-600 text-xs font-black uppercase tracking-widest rounded-xl border border-red-100 hover:bg-red-50 transition-all"
                             >
                               Reject
                             </button>
@@ -827,8 +1054,8 @@ export const TripDetails: React.FC = () => {
                   </div>
                 )}
 
-                <div className="bg-white p-8 rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100">
-                  <h3 className="text-xl font-bold text-gray-900 mb-6">Trip Members ({members.filter(m => m.status === 'approved' || m.isOrganizer).length})</h3>
+                <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100">
+                  <h3 className="text-xl font-black text-gray-900 mb-6 tracking-tight">Trip Members ({members.filter(m => m.status === 'approved' || m.isOrganizer).length})</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {members.filter(m => m.status === 'approved' || m.isOrganizer).map((member) => (
                       <div
@@ -851,7 +1078,7 @@ export const TripDetails: React.FC = () => {
                     ))}
                   </div>
                 </div>
-              </>
+              </div>
             ) : (
               <div className="bg-white p-8 rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100">
                 <ItineraryPlanner 
@@ -868,48 +1095,57 @@ export const TripDetails: React.FC = () => {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            <div className="bg-white p-6 rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Organizer</h3>
+            <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100">
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Organizer</h3>
               <div className="flex items-center space-x-4 mb-6">
-                <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center overflow-hidden">
-                  {organizer?.photo_url || trip.organizer_photo_url ? (
-                    <img src={organizer?.photo_url || trip.organizer_photo_url} alt={organizer?.name || trip.organizer_name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  ) : (
-                    <User className="w-8 h-8 text-indigo-600" />
+                <div className="relative">
+                  <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center overflow-hidden border-2 border-white shadow-md">
+                    {organizer?.photo_url || trip.organizer_photo_url ? (
+                      <img src={organizer?.photo_url || trip.organizer_photo_url} alt={organizer?.name || trip.organizer_name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <User className="w-8 h-8 text-indigo-600" />
+                    )}
+                  </div>
+                  {(organizer?.is_verified || trip.organizer_verified) && (
+                    <div className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-1 shadow-sm border-2 border-white" title="Verified Traveler">
+                      <Check className="w-3 h-3 text-white" strokeWidth={4} />
+                    </div>
                   )}
                 </div>
                 <div>
-                  <div className="flex items-center space-x-2">
-                    <h4 className="font-bold text-gray-900">{organizer?.name || trip.organizer_name || 'Loading...'}</h4>
-                    {(organizer?.is_verified || trip.organizer_verified) && (
-                      <div className="bg-blue-500 rounded-full p-0.5 shadow-sm" title="Verified Traveler">
-                        <Check className="w-2.5 h-2.5 text-white" strokeWidth={4} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center text-amber-500">
-                    <Star className={`w-3 h-3 mr-1 ${organizerRating.totalReviews > 0 ? 'fill-amber-500' : 'text-gray-300'}`} />
-                    <span className="text-xs font-bold">
-                      {organizerRating.totalReviews > 0 ? organizerRating.averageRating : 'New'}
-                      {organizerRating.totalReviews > 0 && ` (${organizerRating.totalReviews} reviews)`}
-                    </span>
+                  <h4 className="font-black text-gray-900 text-lg leading-tight">{organizer?.name || trip.organizer_name || 'Loading...'}</h4>
+                  <div className="flex items-center mt-1">
+                    <div className="flex items-center text-amber-500">
+                      <Star className={`w-3 h-3 mr-1 ${organizerRating.totalReviews > 0 ? 'fill-amber-500' : 'text-gray-300'}`} />
+                      <span className="text-xs font-black">
+                        {organizerRating.totalReviews > 0 ? organizerRating.averageRating : 'New'}
+                      </span>
+                    </div>
+                    <span className="mx-2 text-gray-300">•</span>
+                    <span className="text-xs font-bold text-gray-400">{organizerRating.totalReviews} reviews</span>
                   </div>
                 </div>
               </div>
-              <div className="space-y-3 mb-6">
-                <div className="flex items-center text-sm text-gray-600">
-                  <Shield className="w-4 h-4 mr-2 text-emerald-500" />
-                  <span>Verified Identity</span>
+
+              <div className="space-y-4 mb-8">
+                <div className="flex items-center p-3 bg-gray-50 rounded-xl">
+                  <Shield className="w-4 h-4 mr-3 text-emerald-500" />
+                  <span className="text-xs font-bold text-gray-600">Verified Identity</span>
                 </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <MapPin className="w-4 h-4 mr-2 text-indigo-500" />
-                  <span>{organizer?.location_city || 'India'}, {organizer?.location_country || ''}</span>
+                <div className="flex items-center p-3 bg-gray-50 rounded-xl">
+                  <MapPin className="w-4 h-4 mr-3 text-indigo-500" />
+                  <span className="text-xs font-bold text-gray-600 truncate">{organizer?.location_city || 'India'}, {organizer?.location_country || ''}</span>
+                </div>
+                <div className="flex items-center p-3 bg-gray-50 rounded-xl">
+                  <Award className="w-4 h-4 mr-3 text-amber-500" />
+                  <span className="text-xs font-bold text-gray-600">12 Trips Completed</span>
                 </div>
               </div>
-              <div className="flex flex-col space-y-2">
+
+              <div className="flex flex-col space-y-3">
                 <button 
                   onClick={() => navigate(`/profile/${trip.organizer_id}`)}
-                  className="w-full py-3 border-2 border-gray-100 text-gray-700 rounded-2xl font-bold hover:bg-gray-50 transition-all"
+                  className="w-full py-4 border-2 border-gray-100 text-gray-700 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-all"
                 >
                   View Profile
                 </button>
@@ -917,53 +1153,63 @@ export const TripDetails: React.FC = () => {
                   <button 
                     onClick={handleMessageOrganizer}
                     disabled={messaging}
-                    className="w-full py-3 bg-indigo-50 text-indigo-600 rounded-2xl font-bold hover:bg-indigo-100 transition-all flex items-center justify-center disabled:opacity-50"
+                    className="w-full py-4 bg-indigo-50 text-indigo-600 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-100 transition-all flex items-center justify-center disabled:opacity-50"
                   >
                     <MessageSquare className="w-4 h-4 mr-2" />
-                    {messaging ? 'Connecting...' : 'Message'}
+                    {messaging ? 'Connecting...' : 'Send Message'}
                   </button>
                 )}
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-gray-900">Actions</h3>
-              </div>
+            <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100">
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Trip Actions</h3>
               
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {(isOrganizer || memberStatus === 'approved') ? (
                   <>
                     <button
                       onClick={() => navigate(`/messages/${trip.id}`)}
-                      className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center shadow-lg shadow-indigo-100"
+                      className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-700 transition-all flex items-center justify-center shadow-lg shadow-indigo-100"
                     >
                       <MessageSquare className="w-5 h-5 mr-2" /> Group Chat
                     </button>
                     <button
                       onClick={() => navigate(`/trips/${trip.id}/expenses`)}
-                      className="w-full py-4 bg-emerald-50 text-emerald-600 rounded-2xl font-bold hover:bg-emerald-100 transition-all flex items-center justify-center border border-emerald-100"
+                      className="w-full py-4 bg-emerald-50 text-emerald-600 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-emerald-100 transition-all flex items-center justify-center border border-emerald-100"
                     >
                       <IndianRupee className="w-5 h-5 mr-2" /> Expense Split
                     </button>
                   </>
                 ) : memberStatus === 'pending' ? (
-                  <div className="w-full py-4 bg-amber-50 text-amber-600 rounded-2xl font-bold text-center border border-amber-100">
+                  <div className="w-full py-4 bg-amber-50 text-amber-600 rounded-2xl font-black uppercase tracking-widest text-[10px] text-center border border-amber-100">
                     Request Pending
                   </div>
                 ) : (
                   <button
                     onClick={() => setShowJoinModal(true)}
-                    className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center shadow-lg shadow-indigo-100"
+                    className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-700 transition-all flex items-center justify-center shadow-lg shadow-indigo-100"
                   >
                     <UserPlus className="w-5 h-5 mr-2" /> Request to Join
                   </button>
                 )}
               </div>
               
-              <p className="mt-4 text-[10px] text-center text-gray-400 uppercase tracking-widest font-bold">
-                {trip.current_members} of {trip.max_members} spots filled
-              </p>
+              <div className="mt-6 pt-6 border-t border-gray-50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Availability</span>
+                  <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{trip.max_members - trip.current_members} Left</span>
+                </div>
+                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-indigo-600 transition-all duration-1000" 
+                    style={{ width: `${(trip.current_members / trip.max_members) * 100}%` }}
+                  />
+                </div>
+                <p className="mt-3 text-[10px] text-center text-gray-400 font-bold">
+                  {trip.current_members} of {trip.max_members} spots filled
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -1006,5 +1252,7 @@ export const TripDetails: React.FC = () => {
     </div>
   );
 };
+
+export default TripDetails;
 
 

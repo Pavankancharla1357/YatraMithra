@@ -5,11 +5,23 @@ import { fileURLToPath } from "url";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
+import admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
+import fs from "fs";
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Initialize Firebase Admin
+const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'firebase-applet-config.json'), 'utf8'));
+if (!admin.apps.length) {
+  admin.initializeApp({
+    projectId: firebaseConfig.projectId,
+  });
+}
+const db = getFirestore(admin.app(), firebaseConfig.firestoreDatabaseId);
 
 async function startServer() {
   const app = express();
@@ -18,6 +30,23 @@ async function startServer() {
   app.use(cors());
   app.use(express.json());
   app.use(cookieParser());
+
+  // Auth Middleware
+  const authenticate = async (req: any, res: any, next: any) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const idToken = authHeader.split('Bearer ')[1];
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      req.user = decodedToken;
+      next();
+    } catch (error) {
+      console.error('Error verifying token:', error);
+      res.status(401).json({ error: 'Unauthorized' });
+    }
+  };
 
   console.log("Environment Variables Debug:");
   Object.keys(process.env).forEach(key => {

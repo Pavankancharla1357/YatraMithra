@@ -145,7 +145,7 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
     }
     return (
       <button 
-        className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-black text-xs hover:shadow-xl hover:shadow-indigo-500/40 transition-all active:scale-95 group/btn relative overflow-hidden"
+        className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-black text-[10px] hover:shadow-xl hover:shadow-indigo-500/40 transition-all active:scale-95 group/btn relative overflow-hidden"
         onClick={(e) => {
           e.stopPropagation();
           navigate(`/trips/${trip.id}`);
@@ -170,7 +170,7 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
       onClick={handleCardClick}
       className="bg-white rounded-[2.5rem] overflow-hidden border border-gray-100 transition-all group cursor-pointer flex flex-col h-full relative"
     >
-      <div className="relative aspect-[16/9] bg-gray-100 overflow-hidden">
+      <div className="relative aspect-[16/8] bg-gray-100 overflow-hidden">
         <img
           src={trip.cover_image || getDestinationImage(trip.destination_city)}
           alt={trip.destination_city}
@@ -229,52 +229,52 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
         </div>
       </div>
       
-      <div className="p-6 flex-1 flex flex-col">
-        <div className="flex justify-between items-start mb-3">
-          <h3 className="text-xl font-black text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-2 tracking-tight flex-1 mr-2">
+      <div className="p-4 flex-1 flex flex-col">
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="text-lg font-black text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-1 tracking-tight flex-1 mr-2">
             {trip.destination_city}, {trip.destination_country}
           </h3>
           <div className="text-right shrink-0">
-            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">From</div>
-            <div className="text-lg font-black text-indigo-600 flex items-center justify-end">
-              <IndianRupee className="w-3.5 h-3.5 mr-0.5" />
+            <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">From</div>
+            <div className="text-base font-black text-indigo-600 flex items-center justify-end">
+              <IndianRupee className="w-3 h-3 mr-0.5" />
               {trip.budget_max}
             </div>
           </div>
         </div>
         
-        <div className="flex items-center gap-4 mb-6 text-gray-500 font-bold text-[11px] uppercase tracking-wider">
+        <div className="flex items-center gap-3 mb-4 text-gray-500 font-bold text-[10px] uppercase tracking-wider">
           <div className="flex items-center">
-            <Calendar className="w-3.5 h-3.5 mr-1.5 text-indigo-500" />
+            <Calendar className="w-3 h-3 mr-1 text-indigo-500" />
             <span>{new Date(trip.start_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
           </div>
           <div className="flex items-center">
-            <Users className="w-3.5 h-3.5 mr-1.5 text-emerald-500" />
+            <Users className="w-3 h-3 mr-1 text-emerald-500" />
             <span>{trip.current_members}/{trip.max_members}</span>
           </div>
         </div>
         
-        <div className="mt-auto flex items-center justify-between pt-4 border-t border-gray-50">
+        <div className="mt-auto flex items-center justify-between pt-3 border-t border-gray-50">
           <div 
             onClick={handleOrganizerClick}
-            className="organizer-link flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer"
+            className="organizer-link flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
           >
             <div className="relative">
-              <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center overflow-hidden border border-indigo-100">
+              <div className="w-8 h-8 bg-indigo-50 rounded-xl flex items-center justify-center overflow-hidden border border-indigo-100">
                 {trip.organizer_photo_url ? (
                   <img src={trip.organizer_photo_url} alt={trip.organizer_name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 ) : (
-                  <User className="w-4 h-4 text-indigo-400" />
+                  <User className="w-3.5 h-3.5 text-indigo-400" />
                 )}
               </div>
               {trip.organizer_verified && (
                 <div className="absolute -bottom-0.5 -right-0.5 bg-blue-500 rounded-md p-0.5 shadow-sm border border-white">
-                  <Check className="w-2 h-2 text-white" strokeWidth={5} />
+                  <Check className="w-1.5 h-1.5 text-white" strokeWidth={5} />
                 </div>
               )}
             </div>
             <div className="hidden sm:block">
-              <div className="text-xs font-black text-gray-900 truncate max-w-[80px]">{trip.organizer_name?.split(' ')[0] || 'Host'}</div>
+              <div className="text-[10px] font-black text-gray-900 truncate max-w-[60px]">{trip.organizer_name?.split(' ')[0] || 'Host'}</div>
             </div>
           </div>
           {getCTAButton()}
