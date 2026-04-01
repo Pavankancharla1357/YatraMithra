@@ -6,7 +6,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './components/Auth/AuthContext';
 import { Navbar } from './components/Layout/Navbar';
-import { MobileBottomNav } from './components/Layout/MobileBottomNav';
 import { Home } from './pages/Home';
 import { Login } from './pages/Auth/Login';
 import { Register } from './pages/Auth/Register';
@@ -22,8 +21,8 @@ import { TripDetails } from './pages/Trips/TripDetails';
 import { JoinTrip } from './pages/Trips/JoinTrip';
 import { TripExpenses } from './pages/Trips/TripExpenses';
 import { DocumentVault } from './pages/Trips/DocumentVault';
-import ExpertTravelPlanner from './pages/Trips/ExpertTravelPlanner';
 import TravelMatcher from './pages/Trips/TravelMatcher';
+import ExpertTravelPlanner from './pages/Trips/ExpertTravelPlanner';
 import { ChatList } from './pages/Messages/ChatList';
 import { ChatRoom } from './pages/Messages/ChatRoom';
 import { BuddyFinder } from './pages/Feed/BuddyFinder';
@@ -47,7 +46,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 import { Toaster } from 'sonner';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useEffect } from 'react';
-import { setupPushNotifications } from './services/mobilePushService';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -60,10 +58,6 @@ const ScrollToTop = () => {
 };
 
 export default function App() {
-  useEffect(() => {
-    setupPushNotifications().catch(err => console.error('Push notification setup failed:', err));
-  }, []);
-
   return (
     <ErrorBoundary>
       <AuthProvider>
@@ -128,22 +122,6 @@ export default function App() {
                 } 
               />
               <Route 
-                path="/expert-planner" 
-                element={
-                  <ProtectedRoute>
-                    <ExpertTravelPlanner />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/travel-matcher" 
-                element={
-                  <ProtectedRoute>
-                    <TravelMatcher />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
                 path="/document-vault" 
                 element={
                   <ProtectedRoute>
@@ -179,8 +157,23 @@ export default function App() {
               />
               <Route path="/trips/:id" element={<TripDetails />} />
               <Route path="/join/:tripId/:inviteCode" element={<JoinTrip />} />
+              <Route 
+                path="/travel-matcher" 
+                element={
+                  <ProtectedRoute>
+                    <TravelMatcher />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/expert-planner" 
+                element={
+                  <ProtectedRoute>
+                    <ExpertTravelPlanner />
+                  </ProtectedRoute>
+                } 
+              />
             </Routes>
-            <MobileBottomNav />
           </div>
         </Router>
       </AuthProvider>

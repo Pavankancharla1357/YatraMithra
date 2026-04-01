@@ -1,5 +1,6 @@
 import { db } from '../firebase';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 
 export interface UserRating {
   averageRating: number;
@@ -25,7 +26,7 @@ export const getUserRating = async (userId: string): Promise<UserRating> => {
       totalReviews
     };
   } catch (error) {
-    console.error('Error fetching user rating:', error);
+    handleFirestoreError(error, OperationType.GET, 'reviews');
     return { averageRating: 0, totalReviews: 0 };
   }
 };
@@ -49,6 +50,6 @@ export const subscribeToUserRating = (userId: string, callback: (rating: UserRat
       totalReviews
     });
   }, (error) => {
-    console.error('Error subscribing to user rating:', error);
+    handleFirestoreError(error, OperationType.GET, 'reviews');
   });
 };

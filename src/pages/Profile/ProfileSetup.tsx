@@ -8,6 +8,12 @@ import { handleFirestoreError, OperationType } from '../../utils/firestoreErrorH
 import { motion, AnimatePresence } from 'motion/react';
 import { User, MapPin, Heart, Plane, Check, Smartphone, X } from 'lucide-react';
 
+declare global {
+  interface Window {
+    recaptchaVerifier: any;
+  }
+}
+
 export const ProfileSetup: React.FC = () => {
   const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();

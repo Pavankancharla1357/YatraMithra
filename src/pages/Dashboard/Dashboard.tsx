@@ -18,6 +18,7 @@ export const Dashboard: React.FC = () => {
   const [requests, setRequests] = useState<any[]>([]);
   const [rating, setRating] = useState<{ averageRating: number; totalReviews: number }>({ averageRating: 0, totalReviews: 0 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -27,6 +28,8 @@ export const Dashboard: React.FC = () => {
     });
 
     const fetchDashboardData = async () => {
+      setLoading(true);
+      setError(null);
       try {
         // Fetch trips organized by user
         const tripsQ = query(collection(db, 'trips'), where('organizer_id', '==', user.uid));
@@ -60,8 +63,9 @@ export const Dashboard: React.FC = () => {
           );
           setRequests(requestsData);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching dashboard data:', error);
+        setError(error.message || 'Failed to load dashboard data.');
       } finally {
         setLoading(false);
       }
@@ -146,6 +150,26 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white p-12 rounded-[3rem] shadow-2xl border border-gray-100 max-w-md w-full text-center">
+          <div className="w-20 h-20 bg-red-50 rounded-[2rem] flex items-center justify-center mx-auto mb-8 text-red-500">
+            <Bell className="w-10 h-10" />
+          </div>
+          <h3 className="text-2xl font-black text-gray-900 mb-4 tracking-tight">Dashboard Error</h3>
+          <p className="text-gray-500 mb-10 font-medium">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100"
+          >
+            Retry Loading
+          </button>
         </div>
       </div>
     );

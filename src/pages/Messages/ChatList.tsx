@@ -150,8 +150,8 @@ export const ChatList: React.FC = () => {
   }, [user]);
 
   const filteredChats = chats.filter(chat => 
-    chat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    chat.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+    (chat.name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (chat.lastMessage?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   );
 
   const formatTime = (timestamp: any) => {

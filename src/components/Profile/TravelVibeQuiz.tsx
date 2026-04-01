@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Coffee, Mountain, Camera, Music, Utensils, Moon, Sun, Zap, Heart, Users } from 'lucide-react';
 import { db } from '../../firebase';
 import { doc, setDoc } from 'firebase/firestore';

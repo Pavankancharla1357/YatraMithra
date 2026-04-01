@@ -9,6 +9,7 @@ interface AuthContextType {
   profile: any | null;
   loading: boolean;
   refreshProfile: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -16,12 +17,17 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   refreshProfile: async () => {},
+  logout: async () => {},
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const logout = async () => {
+    await auth.signOut();
+  };
 
   // Validate Connection to Firestore
   useEffect(() => {
@@ -38,40 +44,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    let unsubscribeProfile: (() => void) | null = null;
-
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      
-      if (unsubscribeProfile) {
-        unsubscribeProfile();
-        unsubscribeProfile = null;
-      }
-
-      if (currentUser) {
-        const docRef = doc(db, 'users', currentUser.uid);
-        unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setProfile(docSnap.data());
-          } else {
-            setProfile(null);
-          }
-          setLoading(false);
-        }, (error) => {
-          console.error("Error listening to profile:", error);
-          setLoading(false);
-        });
-      } else {
+      if (!currentUser) {
         setProfile(null);
         setLoading(false);
       }
     });
 
-    return () => {
-      unsubscribeAuth();
-      if (unsubscribeProfile) unsubscribeProfile();
-    };
+    return () => unsubscribeAuth();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const docRef = doc(db, 'users', user.uid);
+    const unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setProfile(docSnap.data());
+      } else {
+        setProfile(null);
+      }
+      setLoading(false);
+    }, (error: any) => {
+      console.error('Profile snapshot error:', error);
+      if (error.code !== 'permission-denied') {
+        handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribeProfile();
+  }, [user]);
 
   const refreshProfile = async () => {
     if (user) {
@@ -84,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, refreshProfile, logout }}>
       {children}
     </AuthContext.Provider>
   );

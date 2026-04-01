@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { db } from '../../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { X, Save, Camera, MapPin, Globe, Instagram, Linkedin, Twitter, User } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType } from '../../utils/firestoreErrorHandler';
 
 interface EditProfileModalProps {

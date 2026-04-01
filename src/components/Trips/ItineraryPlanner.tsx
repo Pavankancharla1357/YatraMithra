@@ -194,7 +194,7 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({ tripId, isMe
         trip_id: tripId,
         title: suggestion.title,
         description: suggestion.description,
-        type: suggestion.category.toLowerCase().includes('food') ? 'dining' : 'activity',
+        type: (suggestion.category || '').toLowerCase().includes('food') ? 'dining' : 'activity',
         budget: suggestion.estimatedCost,
         day: activeDay,
         created_by: user.uid,

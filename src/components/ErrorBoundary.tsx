@@ -38,8 +38,16 @@ export class ErrorBoundary extends Component<Props, State> {
         if (this.state.error?.message) {
           const parsed = JSON.parse(this.state.error.message);
           if (parsed.error && parsed.operationType) {
-            errorMessage = `Permission Denied: You don't have permission to ${parsed.operationType} at ${parsed.path || 'this path'}.`;
-            isFirestoreError = true;
+            const isPermissionDenied = parsed.error.toLowerCase().includes('permission') || 
+                                     parsed.error.toLowerCase().includes('insufficient');
+            
+            if (isPermissionDenied) {
+              errorMessage = `Permission Denied: You don't have permission to ${parsed.operationType} at ${parsed.path || 'this path'}.`;
+              isFirestoreError = true;
+            } else {
+              errorMessage = `Firestore Error: ${parsed.error} during ${parsed.operationType} at ${parsed.path || 'this path'}.`;
+              isFirestoreError = false; // Treat as general error but with better message
+            }
           }
         }
       } catch (e) {

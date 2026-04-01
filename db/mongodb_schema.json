@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ChatMessage",
+  "description": "Schema for chat messages in MongoDB",
+  "type": "object",
+  "properties": {
+    "_id": {
+      "bsonType": "objectId",
+      "description": "Unique identifier for the message"
+    },
+    "channelId": {
+      "type": "string",
+      "description": "ID of the trip or direct message channel"
+    },
+    "senderId": {
+      "type": "string",
+      "description": "User ID of the sender"
+    },
+    "content": {
+      "type": "string",
+      "description": "Text content of the message"
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string" },
+          "type": { "type": "string", "enum": ["image", "video", "file"] },
+          "name": { "type": "string" }
+        }
+      }
+    },
+    "timestamp": {
+      "bsonType": "date",
+      "description": "Time the message was sent"
+    },
+    "readBy": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of user IDs who have read the message"
+    }
+  },
+  "required": ["channelId", "senderId", "content", "timestamp"],
+  "indexes": [
+    { "key": { "channelId": 1, "timestamp": -1 }, "name": "channel_history" },
+    { "key": { "senderId": 1 }, "name": "user_messages" }
+  ]
+}

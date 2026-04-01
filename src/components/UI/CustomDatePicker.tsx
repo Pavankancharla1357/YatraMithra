@@ -47,6 +47,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
           showYearDropdown
           dropdownMode="select"
           dateFormat="MMMM d, yyyy"
+          portalId="root"
           className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white hover:border-indigo-300 transition-all text-gray-900 font-medium placeholder-gray-400"
           calendarClassName="custom-calendar-popup shadow-2xl border-none rounded-3xl overflow-hidden p-2"
           dayClassName={(date) => 

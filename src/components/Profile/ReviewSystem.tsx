@@ -3,7 +3,7 @@ import { db } from '../../firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, increment, getDoc } from 'firebase/firestore';
 import { useAuth } from '../../components/Auth/AuthContext';
 import { createNotification } from '../../services/notificationService';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { Star, MessageSquare, User, Send } from 'lucide-react';
 import { handleFirestoreError, OperationType } from '../../utils/firestoreErrorHandler';
 import { Link } from 'react-router-dom';
@@ -23,7 +23,9 @@ export const ReviewSystem: React.FC<ReviewSystemProps> = ({ targetUserId }) => {
   useEffect(() => {
     const q = query(collection(db, 'reviews'), where('reviewee_id', '==', targetUserId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setReviews(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setReviews(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'reviews');
     });
     return () => unsubscribe();
   }, [targetUserId]);

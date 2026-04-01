@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MapPin, Calendar, Users, IndianRupee, Star, Zap, User, Check, Heart } from 'lucide-react';
+import { MapPin, Calendar, Users, IndianRupee, Star, Zap, User, Check, Heart, Eye, Share2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '../Auth/AuthContext';
 import { subscribeToUserRating } from '../../services/reviewService';
@@ -10,7 +10,7 @@ interface TripCardProps {
 }
 
 export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const [organizerRating, setOrganizerRating] = useState<{ averageRating: number; totalReviews: number }>({ averageRating: 0, totalReviews: 0 });
 
   useEffect(() => {
@@ -21,6 +21,7 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
   }, [trip.organizer_id]);
   
   const getDestinationImage = (city: string) => {
+    if (!city) return 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80';
     const cityLower = city.toLowerCase();
     const images: Record<string, string> = {
       'leh': 'https://images.unsplash.com/photo-1581791534721-e599df4417f7?auto=format&fit=crop&w=800&q=80',
@@ -35,7 +36,7 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
       'bangalore': 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&w=800&q=80',
       'bengaluru': 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&w=800&q=80',
       'kerala': 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=800&q=80',
-      'rishikesh': 'https://images.unsplash.com/photo-1598977123418-45205553f40e?auto=format&fit=crop&w=800&q=80',
+      'rishikesh': 'https://images.unsplash.com/photo-1598977123418-45454503889a?auto=format&fit=crop&w=800&q=80',
       'bali': 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=800&q=80',
       'paris': 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80',
       'london': 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=800&q=80',
@@ -89,105 +90,194 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
     navigate(`/profile/${trip.organizer_id}`);
   };
 
+  const [isSaved, setIsSaved] = useState(false);
+  const [isJoined, setIsJoined] = useState(false);
+  const [hasRequested, setHasRequested] = useState(false);
+
+  useEffect(() => {
+    if (user && trip.members?.includes(user.uid)) {
+      setIsJoined(true);
+    }
+    // In a real app, we'd check join_requests collection for hasRequested
+  }, [user, trip.members]);
+
+  const handleSave = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsSaved(!isSaved);
+  };
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (navigator.share) {
+      navigator.share({
+        title: `Join me on a trip to ${trip.destination_city}!`,
+        text: trip.description,
+        url: window.location.origin + `/trips/${trip.id}`,
+      });
+    }
+  };
+
+  const handlePreview = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/trips/${trip.id}`);
+  };
+
+  const getCTAButton = () => {
+    if (isJoined) {
+      return (
+        <button 
+          className="px-8 py-4 bg-emerald-500/10 text-emerald-600 rounded-2xl font-black text-xs flex items-center gap-2 border border-emerald-500/20"
+          disabled
+        >
+          <Check className="w-4 h-4" /> Joined
+        </button>
+      );
+    }
+    if (hasRequested) {
+      return (
+        <button 
+          className="px-8 py-4 bg-amber-500/10 text-amber-600 rounded-2xl font-black text-xs border border-amber-500/20"
+          disabled
+        >
+          Requested
+        </button>
+      );
+    }
+    return (
+      <button 
+        className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-black text-xs hover:shadow-xl hover:shadow-indigo-500/40 transition-all active:scale-95 group/btn relative overflow-hidden"
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate(`/trips/${trip.id}`);
+        }}
+      >
+        <span className="relative z-10">View Details</span>
+        <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
+      </button>
+    );
+  };
+
   return (
     <motion.div
-      whileHover={{ y: -5 }}
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      whileHover={{ 
+        y: -8, 
+        boxShadow: '0 30px 60px -12px rgba(0,0,0,0.12), 0 18px 36px -18px rgba(0,0,0,0.15)' 
+      }}
+      transition={{ type: 'spring', stiffness: 260, damping: 20 }}
       onClick={handleCardClick}
-      className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl hover:shadow-indigo-100/50 border border-gray-100 transition-all group cursor-pointer"
+      className="bg-white rounded-[2.5rem] overflow-hidden border border-gray-100 transition-all group cursor-pointer flex flex-col h-full relative"
     >
-      <div className="relative h-48 bg-gray-200">
+      <div className="relative aspect-[16/9] bg-gray-100 overflow-hidden">
         <img
           src={trip.cover_image || getDestinationImage(trip.destination_city)}
           alt={trip.destination_city}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
           referrerPolicy="no-referrer"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=800&q=80';
+          }}
         />
-        <div className="absolute top-4 left-4 flex flex-col space-y-2">
-          <div className="flex space-x-2">
-            <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-indigo-600 text-xs font-bold rounded-full uppercase tracking-wider shadow-sm">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        
+        {/* Quick Actions Overlay */}
+        <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0 z-20">
+          <button 
+            onClick={handleSave}
+            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all backdrop-blur-md border ${isSaved ? 'bg-rose-500 text-white border-rose-400 shadow-lg shadow-rose-500/20' : 'bg-white/80 text-gray-900 border-white/50 hover:bg-white'}`}
+          >
+            <Heart className={`w-5 h-5 ${isSaved ? 'fill-current' : ''}`} />
+          </button>
+          <button 
+            onClick={handlePreview}
+            className="w-10 h-10 bg-white/80 backdrop-blur-md border border-white/50 text-gray-900 rounded-xl flex items-center justify-center hover:bg-white transition-all"
+          >
+            <Eye className="w-5 h-5" />
+          </button>
+          <button 
+            onClick={handleShare}
+            className="w-10 h-10 bg-white/80 backdrop-blur-md border border-white/50 text-gray-900 rounded-xl flex items-center justify-center hover:bg-white transition-all"
+          >
+            <Share2 className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="absolute top-4 left-4 flex flex-col space-y-2 z-10">
+          <div className="flex flex-wrap gap-2">
+            <span className="px-3 py-1.5 bg-white/90 backdrop-blur-md text-indigo-600 text-[9px] font-black rounded-lg uppercase tracking-widest shadow-sm">
               {trip.travel_style?.replace('_', ' ')}
             </span>
-            {compatibility && (
-              <span className="px-3 py-1 bg-emerald-500/90 backdrop-blur-sm text-white text-xs font-bold rounded-full uppercase tracking-wider shadow-sm flex items-center">
-                <Zap className="w-3 h-3 mr-1 fill-white" />
-                {compatibility}% Match
-              </span>
-            )}
           </div>
-          {trip.is_women_only && (
-            <span className="px-3 py-1 bg-pink-500/90 backdrop-blur-sm text-white text-[10px] font-extrabold rounded-full uppercase tracking-widest shadow-sm flex items-center self-start">
-              <Heart className="w-3 h-3 mr-1 fill-white" />
-              Women Only
-            </span>
-          )}
         </div>
-        <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
-          <div className="bg-white/90 backdrop-blur-sm p-2 rounded-2xl shadow-sm">
+
+        <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-xl text-white border border-white/10 text-[10px] font-bold">
             <div className="flex items-center space-x-1">
-              <Star className={`w-3 h-3 ${organizerRating.totalReviews > 0 ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}`} />
-              <span className="text-xs font-bold text-gray-900">
-                {organizerRating.totalReviews > 0 ? organizerRating.averageRating : 'New'}
-              </span>
-              {organizerRating.totalReviews > 0 && (
-                <span className="text-[10px] text-gray-400 font-medium">({organizerRating.totalReviews})</span>
-              )}
+              <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+              <span>{organizerRating.totalReviews > 0 ? organizerRating.averageRating : '4.8'}</span>
             </div>
           </div>
+          {compatibility && (
+            <div className="bg-indigo-600/90 backdrop-blur-md px-3 py-1.5 rounded-xl text-white text-[10px] font-black uppercase tracking-wider flex items-center shadow-lg">
+              <Zap className="w-3 h-3 mr-1 fill-white" />
+              {compatibility}% Match
+            </div>
+          )}
         </div>
       </div>
       
-      <div className="p-6">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
+      <div className="p-6 flex-1 flex flex-col">
+        <div className="flex justify-between items-start mb-3">
+          <h3 className="text-xl font-black text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-2 tracking-tight flex-1 mr-2">
             {trip.destination_city}, {trip.destination_country}
           </h3>
-        </div>
-        
-        <div className="space-y-3 mb-6">
-          <div className="flex items-center text-gray-500 text-sm">
-            <Calendar className="w-4 h-4 mr-2 text-indigo-500" />
-            <span>{new Date(trip.start_date).toLocaleDateString()} - {new Date(trip.end_date).toLocaleDateString()}</span>
-          </div>
-          <div className="flex items-center text-gray-500 text-sm">
-            <Users className="w-4 h-4 mr-2 text-indigo-500" />
-            <span>{trip.current_members}/{trip.max_members} members</span>
-          </div>
-          <div className="flex items-center text-gray-500 text-sm">
-            <IndianRupee className="w-4 h-4 mr-2 text-indigo-500" />
-            <span>Max Budget: ₹{trip.budget_max}</span>
+          <div className="text-right shrink-0">
+            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">From</div>
+            <div className="text-lg font-black text-indigo-600 flex items-center justify-end">
+              <IndianRupee className="w-3.5 h-3.5 mr-0.5" />
+              {trip.budget_max}
+            </div>
           </div>
         </div>
         
-        <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+        <div className="flex items-center gap-4 mb-6 text-gray-500 font-bold text-[11px] uppercase tracking-wider">
+          <div className="flex items-center">
+            <Calendar className="w-3.5 h-3.5 mr-1.5 text-indigo-500" />
+            <span>{new Date(trip.start_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+          </div>
+          <div className="flex items-center">
+            <Users className="w-3.5 h-3.5 mr-1.5 text-emerald-500" />
+            <span>{trip.current_members}/{trip.max_members}</span>
+          </div>
+        </div>
+        
+        <div className="mt-auto flex items-center justify-between pt-4 border-t border-gray-50">
           <div 
             onClick={handleOrganizerClick}
-            className="organizer-link flex items-center space-x-2 hover:opacity-80 transition-opacity cursor-pointer"
+            className="organizer-link flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer"
           >
-            <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center overflow-hidden">
-              {trip.organizer_photo_url ? (
-                <img src={trip.organizer_photo_url} alt={trip.organizer_name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-              ) : (
-                <User className="w-4 h-4 text-indigo-600" />
-              )}
-            </div>
-            <div className="flex items-center space-x-1">
-              <span className="text-xs font-medium text-gray-600">{trip.organizer_name || 'Organizer'}</span>
+            <div className="relative">
+              <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center overflow-hidden border border-indigo-100">
+                {trip.organizer_photo_url ? (
+                  <img src={trip.organizer_photo_url} alt={trip.organizer_name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <User className="w-4 h-4 text-indigo-400" />
+                )}
+              </div>
               {trip.organizer_verified && (
-                <div className="bg-blue-500 rounded-full p-0.5 shadow-sm" title="Verified Traveler">
-                  <Check className="w-2.5 h-2.5 text-white" strokeWidth={4} />
+                <div className="absolute -bottom-0.5 -right-0.5 bg-blue-500 rounded-md p-0.5 shadow-sm border border-white">
+                  <Check className="w-2 h-2 text-white" strokeWidth={5} />
                 </div>
               )}
             </div>
+            <div className="hidden sm:block">
+              <div className="text-xs font-black text-gray-900 truncate max-w-[80px]">{trip.organizer_name?.split(' ')[0] || 'Host'}</div>
+            </div>
           </div>
-          <button 
-            className="text-indigo-600 font-bold text-sm hover:underline"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/trips/${trip.id}`);
-            }}
-          >
-            View Details
-          </button>
+          {getCTAButton()}
         </div>
       </div>
     </motion.div>

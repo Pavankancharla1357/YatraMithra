@@ -4,9 +4,9 @@ import { useAuth } from '../Auth/AuthContext';
 import { auth, db } from '../../firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { Compass, MessageSquare, User, LogOut, Menu, X, AlertCircle, Users, Sparkles, Bell } from 'lucide-react';
+import { Compass, MessageSquare, User, LogOut, Menu, X, AlertCircle, Users, Sparkles, Bell, LayoutDashboard } from 'lucide-react';
 import { NotificationBell } from '../Notifications/NotificationBell';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { Capacitor } from '@capacitor/core';
 
 export const Navbar: React.FC = () => {
@@ -55,18 +55,17 @@ export const Navbar: React.FC = () => {
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link to="/expert-planner" className="text-indigo-600 hover:text-indigo-700 font-bold transition-colors flex items-center gap-1">
-              <Sparkles className="w-4 h-4" />
-              AI Planner
-            </Link>
-            <Link to="/discover" className="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Discover</Link>
+            <Link to="/discover" className="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Discover Trips</Link>
             <Link to="/buddy-finder" className="text-gray-600 hover:text-indigo-600 font-medium transition-colors flex items-center">
               <Users className="w-4 h-4 mr-1" />
               Buddy Finder
             </Link>
             {user ? (
               <>
-                <Link to="/dashboard" className="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Dashboard</Link>
+                <Link to="/dashboard" className="text-gray-600 hover:text-indigo-600 font-medium transition-colors flex items-center">
+                  <LayoutDashboard className="w-4 h-4 mr-1" />
+                  Dashboard
+                </Link>
                 <Link to="/messages" className="text-gray-600 hover:text-indigo-600 font-medium transition-colors flex items-center relative">
                   <MessageSquare className="w-4 h-4 mr-1" />
                   Messages
@@ -75,6 +74,10 @@ export const Navbar: React.FC = () => {
                   )}
                 </Link>
                 <NotificationBell />
+                <Link to="/expert-planner" className="text-gray-400 hover:text-indigo-600 font-medium transition-colors flex items-center gap-1 text-sm">
+                  <Sparkles className="w-3 h-3" />
+                  AI Helper
+                </Link>
                 <Link to="/profile" className="flex items-center space-x-2 bg-gray-50 px-3 py-1.5 rounded-full hover:bg-gray-100 transition-colors">
                   <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
                     <User className="text-indigo-600 w-4 h-4" />
@@ -90,6 +93,10 @@ export const Navbar: React.FC = () => {
               </>
             ) : (
               <div className="flex items-center space-x-4">
+                <Link to="/expert-planner" className="text-gray-400 hover:text-indigo-600 font-medium transition-colors flex items-center gap-1 text-sm mr-4">
+                  <Sparkles className="w-3 h-3" />
+                  AI Helper
+                </Link>
                 <Link to="/login" className="text-gray-600 hover:text-indigo-600 font-medium">Login</Link>
                 <Link to="/register" className="bg-indigo-600 text-white px-5 py-2 rounded-full font-medium hover:bg-indigo-700 transition-all shadow-sm">
                   Join Now
@@ -125,16 +132,11 @@ export const Navbar: React.FC = () => {
       {/* Mobile Menu - Only show if not Android or not logged in */}
       {isOpen && (!isAndroid || !user) && (
         <div className="md:hidden bg-white border-t border-gray-100 px-4 pt-2 pb-6 space-y-4 shadow-lg">
-          <Link to="/expert-planner" className="block text-indigo-600 font-bold py-2 flex items-center gap-2">
-            <Sparkles className="w-5 h-5" />
-            AI Expert Planner
-          </Link>
-          <Link to="/discover" className="block text-gray-600 font-medium py-2">Discover</Link>
-          <Link to="/buddy-finder" className="block text-gray-600 font-medium py-2">Buddy Finder</Link>
+          <Link to="/discover" className="block text-gray-900 font-black py-2 text-lg">Discover Trips</Link>
+          <Link to="/buddy-finder" className="block text-gray-900 font-black py-2 text-lg">Buddy Finder</Link>
           {user ? (
             <>
               <Link to="/dashboard" className="block text-gray-600 font-medium py-2">Dashboard</Link>
-              <Link to="/notifications" className="block text-gray-600 font-medium py-2">Notifications</Link>
               <Link to="/messages" className="block text-gray-600 font-medium py-2 relative inline-flex items-center">
                 Messages
                 {hasUnreadMessages && (
@@ -142,6 +144,10 @@ export const Navbar: React.FC = () => {
                 )}
               </Link>
               <Link to="/profile" className="block text-gray-600 font-medium py-2">Profile</Link>
+              <Link to="/expert-planner" className="block text-indigo-400 font-medium py-2 flex items-center gap-2 text-sm">
+                <Sparkles className="w-4 h-4" />
+                AI Helper
+              </Link>
               <button 
                 onClick={() => setShowLogoutConfirm(true)}
                 className="block w-full text-left text-red-500 font-medium py-2"
@@ -151,6 +157,10 @@ export const Navbar: React.FC = () => {
             </>
           ) : (
             <>
+              <Link to="/expert-planner" className="block text-indigo-400 font-medium py-2 flex items-center gap-2 text-sm">
+                <Sparkles className="w-4 h-4" />
+                AI Helper
+              </Link>
               <Link to="/login" className="block text-gray-600 font-medium py-2">Login</Link>
               <Link to="/register" className="block bg-indigo-600 text-white px-5 py-2 rounded-lg font-medium text-center">
                 Join Now

@@ -116,6 +116,7 @@ export const TripDetails: React.FC = () => {
   const [messaging, setMessaging] = useState(false);
 
   const getDestinationImage = (city: string) => {
+    if (!city) return 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80';
     const cityLower = city.toLowerCase();
     const images: Record<string, string> = {
       'leh': 'https://images.unsplash.com/photo-1581791534721-e599df4417f7?auto=format&fit=crop&w=1920&q=80',
@@ -130,7 +131,7 @@ export const TripDetails: React.FC = () => {
       'bangalore': 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&w=1920&q=80',
       'bengaluru': 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&w=1920&q=80',
       'kerala': 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=1920&q=80',
-      'rishikesh': 'https://images.unsplash.com/photo-1598977123418-45205553f40e?auto=format&fit=crop&w=1920&q=80',
+      'rishikesh': 'https://images.unsplash.com/photo-1598977123418-45454503889a?auto=format&fit=crop&w=1920&q=80',
       'bali': 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1920&q=80',
       'paris': 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1920&q=80',
       'london': 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=1920&q=80',
@@ -635,6 +636,10 @@ export const TripDetails: React.FC = () => {
           alt={trip.destination_city}
           className="w-full h-full object-cover"
           referrerPolicy="no-referrer"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1920&q=80'; // Generic travel fallback
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
         <button

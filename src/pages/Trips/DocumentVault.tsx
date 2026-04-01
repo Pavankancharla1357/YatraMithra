@@ -52,7 +52,7 @@ export const DocumentVault: React.FC = () => {
   };
 
   const getDocIcon = (type: string) => {
-    const t = type.toLowerCase();
+    const t = (type || '').toLowerCase();
     if (t.includes('flight') || t.includes('ticket')) return <Plane className="w-5 h-5" />;
     if (t.includes('hotel') || t.includes('booking')) return <Hotel className="w-5 h-5" />;
     if (t.includes('id') || t.includes('passport')) return <User className="w-5 h-5" />;
