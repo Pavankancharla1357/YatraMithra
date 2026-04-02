@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../../firebase';
-import { collection, query, getDocs, where, orderBy, limit } from 'firebase/firestore';
+import { collection, query, getDocs, where, orderBy, limit, getCountFromServer, addDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../../utils/firestoreErrorHandler';
 import { TripCard } from '../../components/Trips/TripCard';
-import { Search, Filter, MapPin, Calendar as CalendarIcon, SlidersHorizontal, Compass, Plane, X, Plus, ChevronDown, History, TrendingUp, CheckCircle2, Heart, Zap, Star } from 'lucide-react';
+import { Search, Filter, MapPin, Calendar as CalendarIcon, SlidersHorizontal, Compass, Plane, X, Plus, ChevronDown, History, TrendingUp, CheckCircle2, Heart, Zap, Star, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../components/Auth/AuthContext';
+import { toast } from 'sonner';
 import { CustomSelect } from '../../components/UI/CustomSelect';
 import { CustomDatePicker } from '../../components/UI/CustomDatePicker';
 import { Skeleton } from '../../components/UI/Skeleton';
@@ -39,13 +40,117 @@ export const DiscoverTrips: React.FC = () => {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [sortByNearby, setSortByNearby] = useState(false);
 
-  const placeholders = [
-    "Search Goa, Manali, Ladakh...",
-    "Looking for Trekking adventures?",
-    "Find Budget trips under 10k...",
-    "Discover Luxury getaways...",
-    "Explore Nature with your tribe..."
-  ];
+  const [userCount, setUserCount] = useState<number>(0);
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  const isAdmin = profile?.email === 'pavankancharla1357@gmail.com';
+
+  const seedSampleTrips = async () => {
+    if (!user) return;
+    setIsSeeding(true);
+    try {
+      const sampleTrips = [
+        {
+          organizer_id: user.uid,
+          organizer_name: profile?.name || 'Admin',
+          organizer_photo_url: profile?.photo_url || '',
+          destination_city: 'Manali',
+          destination_country: 'India',
+          start_date: '2026-05-10',
+          end_date: '2026-05-15',
+          budget_max: 15000,
+          max_members: 6,
+          current_members: 1,
+          travel_style: 'adventure',
+          description: 'Exploring the mountains of Manali. Trekking, river rafting and more!',
+          status: 'open',
+          settings: { privacy: 'public', approval_required: true, show_exact_location: true, notification_preferences: { new_member: true, new_message: true, expense_update: true } },
+          created_at: new Date().toISOString(),
+          trip_types: ['Adventure', 'Trekking']
+        },
+        {
+          organizer_id: user.uid,
+          organizer_name: profile?.name || 'Admin',
+          organizer_photo_url: profile?.photo_url || '',
+          destination_city: 'Goa',
+          destination_country: 'India',
+          start_date: '2026-06-01',
+          end_date: '2026-06-05',
+          budget_max: 12000,
+          max_members: 8,
+          current_members: 1,
+          travel_style: 'relaxation',
+          description: 'Beach vibes and sunset parties in North Goa.',
+          status: 'open',
+          settings: { privacy: 'public', approval_required: false, show_exact_location: true, notification_preferences: { new_member: true, new_message: true, expense_update: true } },
+          created_at: new Date().toISOString(),
+          trip_types: ['Relaxation', 'Foodie']
+        },
+        {
+          organizer_id: user.uid,
+          organizer_name: profile?.name || 'Admin',
+          organizer_photo_url: profile?.photo_url || '',
+          destination_city: 'Ladakh',
+          destination_country: 'India',
+          start_date: '2026-07-15',
+          end_date: '2026-07-25',
+          budget_max: 35000,
+          max_members: 4,
+          current_members: 1,
+          travel_style: 'adventure',
+          description: 'The ultimate road trip to the land of high passes.',
+          status: 'open',
+          settings: { privacy: 'public', approval_required: true, show_exact_location: true, notification_preferences: { new_member: true, new_message: true, expense_update: true } },
+          created_at: new Date().toISOString(),
+          trip_types: ['Adventure', 'Nature']
+        }
+      ];
+
+      for (const tripData of sampleTrips) {
+        await addDoc(collection(db, 'trips'), tripData);
+      }
+      toast.success("Sample trips seeded successfully!");
+      fetchTrips();
+    } catch (e) {
+      console.error("Error seeding trips:", e);
+      toast.error("Failed to seed trips");
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
+  const placeholders = useMemo(() => {
+    if (trips.length === 0) return [
+      "Search Goa, Manali, Ladakh...",
+      "Looking for Trekking adventures?",
+      "Find Budget trips under 10k...",
+      "Discover Luxury getaways...",
+      "Explore Nature with your tribe..."
+    ];
+    
+    const destinations = Array.from(new Set(trips.map(t => t.destination_city).filter(Boolean))).slice(0, 3);
+    const types = Array.from(new Set(trips.flatMap(t => t.trip_types || []))).slice(0, 2);
+    
+    return [
+      `Search ${destinations.join(', ')}...`,
+      `Looking for ${types[0] || 'Trekking'} adventures?`,
+      "Find Budget trips under 10k...",
+      "Discover Luxury getaways...",
+      "Explore Nature with your tribe..."
+    ];
+  }, [trips]);
+
+  useEffect(() => {
+    const fetchUserCount = async () => {
+      try {
+        const snapshot = await getCountFromServer(collection(db, 'users'));
+        setUserCount(snapshot.data().count);
+      } catch (e) {
+        console.error("Error fetching user count:", e);
+      }
+    };
+    fetchUserCount();
+  }, []);
 
   useEffect(() => {
     let currentText = "";
@@ -97,31 +202,36 @@ export const DiscoverTrips: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      // Strategy 1: Try to fetch all trips (works if all are public or user is admin)
-      const qAll = query(collection(db, 'trips'), limit(100));
       let querySnapshot;
       
-      try {
-        querySnapshot = await getDocs(qAll);
-      } catch (permissionError: any) {
-        // If it's a permission error, try public only
-        if (permissionError.code === 'permission-denied') {
-          console.log('Permission denied for all trips, fetching public only...');
-          const qPublic = query(
-            collection(db, 'trips'),
-            where('settings.privacy', '==', 'public'),
-            limit(100)
-          );
-          try {
+      if (user) {
+        // Strategy 1: Try to fetch all trips (works if all are public or user is admin)
+        const qAll = query(collection(db, 'trips'), limit(100));
+        try {
+          querySnapshot = await getDocs(qAll);
+        } catch (permissionError: any) {
+          // If it's a permission error, try public only
+          if (permissionError.code === 'permission-denied') {
+            console.log('Permission denied for all trips, fetching public only...');
+            const qPublic = query(
+              collection(db, 'trips'),
+              where('settings.privacy', '==', 'public'),
+              limit(100)
+            );
             querySnapshot = await getDocs(qPublic);
-          } catch (publicError: any) {
-            handleFirestoreError(publicError, OperationType.LIST, 'trips');
-            return;
+          } else {
+            throw permissionError;
           }
-        } else {
-          handleFirestoreError(permissionError, OperationType.LIST, 'trips');
-          return;
         }
+      } else {
+        // Unauthenticated: fetch public only
+        console.log('Unauthenticated user, fetching public trips only...');
+        const qPublic = query(
+          collection(db, 'trips'),
+          where('settings.privacy', 'in', ['public', 'invite_only']),
+          limit(100)
+        );
+        querySnapshot = await getDocs(qPublic);
       }
 
       if (!querySnapshot) {
@@ -207,8 +317,8 @@ export const DiscoverTrips: React.FC = () => {
     }
 
     // Status filter (treat missing status as 'open' for legacy data)
-    const status = trip.status || 'open';
-    if (status !== 'open') return false;
+    const status = (trip.status || 'open').toLowerCase();
+    if (status !== 'open' && status !== 'active') return false;
 
     const matchesSearch = (trip.destination_city?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
       (trip.destination_country?.toLowerCase() || '').includes(searchTerm.toLowerCase());
@@ -218,8 +328,13 @@ export const DiscoverTrips: React.FC = () => {
     
     const matchesStartDate = !filters.startDate || (trip.start_date && new Date(trip.start_date) >= new Date(filters.startDate));
     const matchesEndDate = !filters.endDate || (trip.end_date && new Date(trip.end_date) <= new Date(filters.endDate));
-    const matchesBudget = trip.budget_max <= filters.maxBudget;
+    
+    // Relaxed budget check: if no budget specified, it matches any budget filter
+    const matchesBudget = !trip.budget_max || trip.budget_max <= filters.maxBudget;
+    
+    // Relaxed group size check: if no max_members specified, it defaults to 20
     const matchesGroupSize = (trip.max_members || 20) <= filters.maxGroupSize;
+    
     const matchesStyle = !filters.travelStyle || trip.travel_style === filters.travelStyle;
 
     return matchesSearch && matchesTags && matchesStartDate && matchesEndDate && matchesBudget && matchesStyle && matchesGroupSize;
@@ -261,7 +376,20 @@ export const DiscoverTrips: React.FC = () => {
     { name: 'Foodie', icon: '🍜' }
   ];
 
-  const trendingDestinations = ['Goa', 'Manali', 'Ladakh', 'Rishikesh', 'Udaipur'];
+  const trendingDestinations = useMemo(() => {
+    const counts: Record<string, number> = {};
+    trips.forEach(trip => {
+      if (trip.destination_city) {
+        counts[trip.destination_city] = (counts[trip.destination_city] || 0) + 1;
+      }
+    });
+    const sorted = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(entry => entry[0]);
+    
+    return sorted.length > 0 ? sorted : ['Goa', 'Manali', 'Ladakh', 'Rishikesh', 'Udaipur'];
+  }, [trips]);
 
   const recommendedTrips = filteredTrips.filter(t => calculateCompatibility(t) && calculateCompatibility(t)! >= 80).slice(0, 3);
   const nearbyTrips = filteredTrips.filter(t => userLocation && t.destination_lat && calculateDistance(userLocation.lat, userLocation.lng, t.destination_lat, t.destination_lng) < 500).slice(0, 3);
@@ -302,6 +430,16 @@ export const DiscoverTrips: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
               >
+                {isAdmin && (
+                  <button
+                    onClick={seedSampleTrips}
+                    disabled={isSeeding}
+                    className="mb-4 px-4 py-2 bg-indigo-500/20 text-indigo-400 rounded-lg text-xs font-bold border border-indigo-500/30 hover:bg-indigo-500/30 transition-all flex items-center gap-2"
+                  >
+                    {isSeeding ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                    Seed Sample Trips (Admin)
+                  </button>
+                )}
                 <span className="inline-flex items-center px-4 py-1.5 mb-6 text-[10px] font-black tracking-[0.2em] text-indigo-400 uppercase bg-indigo-400/10 rounded-full border border-indigo-400/20">
                   <Compass className="w-3 h-3 mr-2" /> Explore India
                 </span>
@@ -356,7 +494,7 @@ export const DiscoverTrips: React.FC = () => {
                       />
                     ))}
                     <div className="w-10 h-10 rounded-full border-2 border-gray-900 bg-indigo-600 flex items-center justify-center text-[10px] font-black text-white shadow-xl">
-                      +12k
+                      +{userCount > 1000 ? (userCount / 1000).toFixed(1) + 'k' : userCount}
                     </div>
                   </div>
                   <Link to="/trips/create" className="text-indigo-400 font-black text-sm hover:text-indigo-300 transition-colors flex items-center">

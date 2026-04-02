@@ -20,8 +20,8 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
     return () => unsubscribe();
   }, [trip.organizer_id]);
   
-  const getDestinationImage = (city: string) => {
-    if (!city) return 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80';
+  const getDestinationImage = (city: any) => {
+    if (typeof city !== 'string' || !city) return 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80';
     const cityLower = city.toLowerCase();
     const images: Record<string, string> = {
       'leh': 'https://images.unsplash.com/photo-1581791534721-e599df4417f7?auto=format&fit=crop&w=800&q=80',
@@ -36,6 +36,12 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
       'bangalore': 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&w=800&q=80',
       'bengaluru': 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&w=800&q=80',
       'kerala': 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=800&q=80',
+      'coorg': 'https://images.unsplash.com/photo-1628155930542-3c7a64e2c833?auto=format&fit=crop&w=800&q=80',
+      'kodagu': 'https://images.unsplash.com/photo-1628155930542-3c7a64e2c833?auto=format&fit=crop&w=800&q=80',
+      'ooty': 'https://images.unsplash.com/photo-1590534247854-e97d5e3fe367?auto=format&fit=crop&w=800&q=80',
+      'munnar': 'https://images.unsplash.com/photo-1593693397690-362cb9666fc2?auto=format&fit=crop&w=800&q=80',
+      'hampi': 'https://images.unsplash.com/photo-1581333100576-b73bbebd3c2e?auto=format&fit=crop&w=800&q=80',
+      'pondicherry': 'https://images.unsplash.com/photo-1589793463357-5fb813435467?auto=format&fit=crop&w=800&q=80',
       'rishikesh': 'https://images.unsplash.com/photo-1598977123418-45454503889a?auto=format&fit=crop&w=800&q=80',
       'bali': 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=800&q=80',
       'paris': 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80',
@@ -80,6 +86,10 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
   const handleCardClick = (e: React.MouseEvent) => {
     // Prevent navigation if clicking on the organizer profile
     if ((e.target as HTMLElement).closest('.organizer-link')) {
+      return;
+    }
+    if (!user) {
+      navigate('/login', { state: { from: `/trips/${trip.id}` } });
       return;
     }
     navigate(`/trips/${trip.id}`);
@@ -148,6 +158,10 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
         className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-black text-[10px] hover:shadow-xl hover:shadow-indigo-500/40 transition-all active:scale-95 group/btn relative overflow-hidden"
         onClick={(e) => {
           e.stopPropagation();
+          if (!user) {
+            navigate('/login', { state: { from: `/trips/${trip.id}` } });
+            return;
+          }
           navigate(`/trips/${trip.id}`);
         }}
       >
@@ -217,7 +231,7 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
           <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-xl text-white border border-white/10 text-[10px] font-bold">
             <div className="flex items-center space-x-1">
               <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-              <span>{organizerRating.totalReviews > 0 ? organizerRating.averageRating : '4.8'}</span>
+              <span>{organizerRating.totalReviews > 0 ? organizerRating.averageRating : 'New'}</span>
             </div>
           </div>
           {compatibility && (

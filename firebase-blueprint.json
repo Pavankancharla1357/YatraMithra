@@ -99,7 +99,7 @@
         "settings": {
           "type": "object",
           "properties": {
-            "privacy": { "type": "string", "enum": ["public", "private"] },
+            "privacy": { "type": "string", "enum": ["public", "private", "invite_only"] },
             "show_exact_location": { "type": "boolean" },
             "notification_preferences": {
               "type": "object",

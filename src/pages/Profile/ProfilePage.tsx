@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '../../firebase';
 import { doc, onSnapshot, collection, query, where, getDocs, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
-import { User, MapPin, Shield, Star, Plane, MessageSquare, Instagram, Linkedin, Twitter, Globe, Camera, Users, Calendar, Edit2, Zap, Check, ChevronRight, Settings, LogOut, Award, Heart, Send, Plus } from 'lucide-react';
+import { User, MapPin, Shield, Star, Plane, MessageSquare, Instagram, Linkedin, Twitter, Globe, Camera, Users, Calendar, Edit2, Zap, Check, ChevronRight, Settings, LogOut, Award, Heart, Send, Plus, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../components/Auth/AuthContext';
 import { TripCard } from '../../components/Trips/TripCard';
@@ -24,6 +24,7 @@ export const ProfilePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'about' | 'trips' | 'reviews' | 'activity' | 'security'>('about');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [messaging, setMessaging] = useState(false);
 
   const isOwner = !uid || user?.uid === uid;
@@ -130,6 +131,43 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
+  const getDestinationImage = (city: any) => {
+    if (typeof city !== 'string' || !city) return 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80';
+    const cityLower = city.toLowerCase();
+    const images: Record<string, string> = {
+      'leh': 'https://images.unsplash.com/photo-1581791534721-e599df4417f7?auto=format&fit=crop&w=800&q=80',
+      'ladakh': 'https://images.unsplash.com/photo-1581791534721-e599df4417f7?auto=format&fit=crop&w=800&q=80',
+      'manali': 'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?auto=format&fit=crop&w=800&q=80',
+      'nandi hills': 'https://images.unsplash.com/photo-1600100397608-f010f423b971?auto=format&fit=crop&w=800&q=80',
+      'goa': 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=800&q=80',
+      'jaipur': 'https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=800&q=80',
+      'udaipur': 'https://images.unsplash.com/photo-1585129819171-806f086600fd?auto=format&fit=crop&w=800&q=80',
+      'mumbai': 'https://images.unsplash.com/photo-1529253355930-ddbe423a2ac7?auto=format&fit=crop&w=800&q=80',
+      'delhi': 'https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=800&q=80',
+      'bangalore': 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&w=800&q=80',
+      'bengaluru': 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&w=800&q=80',
+      'kerala': 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=800&q=80',
+      'coorg': 'https://images.unsplash.com/photo-1628155930542-3c7a64e2c833?auto=format&fit=crop&w=800&q=80',
+      'kodagu': 'https://images.unsplash.com/photo-1628155930542-3c7a64e2c833?auto=format&fit=crop&w=800&q=80',
+      'ooty': 'https://images.unsplash.com/photo-1590534247854-e97d5e3fe367?auto=format&fit=crop&w=800&q=80',
+      'munnar': 'https://images.unsplash.com/photo-1593693397690-362cb9666fc2?auto=format&fit=crop&w=800&q=80',
+      'hampi': 'https://images.unsplash.com/photo-1581333100576-b73bbebd3c2e?auto=format&fit=crop&w=800&q=80',
+      'pondicherry': 'https://images.unsplash.com/photo-1589793463357-5fb813435467?auto=format&fit=crop&w=800&q=80',
+      'rishikesh': 'https://images.unsplash.com/photo-1598977123418-45454503889a?auto=format&fit=crop&w=800&q=80',
+      'bali': 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=800&q=80',
+      'paris': 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80',
+      'london': 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=800&q=80',
+      'new york': 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&w=800&q=80',
+      'tokyo': 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=800&q=80',
+    };
+
+    for (const [key, url] of Object.entries(images)) {
+      if (cityLower.includes(key)) return url;
+    }
+
+    return 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80';
+  };
+
   const formatSocialLink = (url: string, platform: 'instagram' | 'linkedin' | 'twitter') => {
     if (!url) return '#';
     if (url.startsWith('http')) return url;
@@ -227,7 +265,7 @@ export const ProfilePage: React.FC = () => {
                   
                   {/* Tagline - Muted */}
                   <p className="text-white/80 text-sm sm:text-base font-medium mb-3 drop-shadow-md italic max-w-md">
-                    {profile.tagline || "Adventure seeker • Weekend traveler • Explorer"}
+                    {profile.tagline || "Ready for the next adventure"}
                   </p>
 
                   {/* Meta - Location, Status */}
@@ -254,18 +292,22 @@ export const ProfilePage: React.FC = () => {
                     </div>
                   </div>
                 )}
-                <div className="bg-amber-500/20 backdrop-blur-md p-2.5 rounded-2xl border border-amber-400/30 group/badge cursor-help relative">
-                  <Award className="w-5 h-5 text-amber-400 fill-amber-400/20" />
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-[10px] font-black rounded-lg opacity-0 group-hover/badge:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                    Explorer Level 5
+                {rating.totalReviews >= 5 && rating.averageRating >= 4.5 && (
+                  <div className="bg-amber-500/20 backdrop-blur-md p-2.5 rounded-2xl border border-amber-400/30 group/badge cursor-help relative">
+                    <Award className="w-5 h-5 text-amber-400 fill-amber-400/20" />
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-[10px] font-black rounded-lg opacity-0 group-hover/badge:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                      Top Rated Host
+                    </div>
                   </div>
-                </div>
-                <div className="bg-indigo-500/20 backdrop-blur-md p-2.5 rounded-2xl border border-indigo-400/30 group/badge cursor-help relative">
-                  <Zap className="w-5 h-5 text-indigo-400 fill-indigo-400/20" />
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-[10px] font-black rounded-lg opacity-0 group-hover/badge:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                    Fast Responder
+                )}
+                {trips.length >= 3 && (
+                  <div className="bg-indigo-500/20 backdrop-blur-md p-2.5 rounded-2xl border border-indigo-400/30 group/badge cursor-help relative">
+                    <Zap className="w-5 h-5 text-indigo-400 fill-indigo-400/20" />
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-[10px] font-black rounded-lg opacity-0 group-hover/badge:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                      Frequent Traveler
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* RIGHT ZONE: Actions */}
@@ -287,7 +329,7 @@ export const ProfilePage: React.FC = () => {
                         <Settings className="w-5 h-5" />
                       </button>
                       <button 
-                        onClick={handleLogout}
+                        onClick={() => setShowLogoutConfirm(true)}
                         className="flex-1 sm:flex-none p-4 bg-red-500/10 backdrop-blur-md border border-red-500/20 text-red-500 rounded-2xl hover:bg-red-500/20 transition-all flex items-center justify-center active:scale-95"
                       >
                         <LogOut className="w-5 h-5" />
@@ -450,10 +492,14 @@ export const ProfilePage: React.FC = () => {
                           >
                             <div className="aspect-[16/10] overflow-hidden relative">
                               <img 
-                                src={trip.cover_image || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80'} 
+                                src={trip.cover_image || getDestinationImage(trip.destination_city)} 
                                 alt={trip.destination_city}
                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                 referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=800&q=80';
+                                }}
                               />
                               <div className="absolute top-3 right-3 px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-lg text-indigo-600 text-[10px] font-black uppercase tracking-widest shadow-sm">
                                 {trip.travel_style?.replace('_', ' ')}
@@ -598,7 +644,7 @@ export const ProfilePage: React.FC = () => {
             {/* Quick Stats Card */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
               <div className="text-center flex-1">
-                <p className="text-xl font-black text-gray-900">{rating.averageRating || '5.0'}</p>
+                <p className="text-xl font-black text-gray-900">{rating.totalReviews > 0 ? rating.averageRating : 'New'}</p>
                 <div className="flex items-center justify-center gap-1 mt-0.5">
                   <Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
                   <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Rating</span>
@@ -617,28 +663,42 @@ export const ProfilePage: React.FC = () => {
             </div>
 
             {/* Profile Completion - Only for owner */}
-            {isOwner && (
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Profile Progress</h3>
-                  <Award className="w-4 h-4 text-indigo-600" />
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-end">
-                    <span className="text-xl font-black text-gray-900">85%</span>
-                    <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Almost there!</span>
+            {isOwner && (() => {
+              const fields = ['bio', 'photo_url', 'cover_url', 'location_city', 'tagline', 'interests', 'social_links'];
+              const filledFields = fields.filter(f => {
+                if (f === 'interests') return profile.interests?.length > 0;
+                if (f === 'social_links') return Object.keys(profile.social_links || {}).length > 0;
+                return !!profile[f];
+              });
+              const progress = Math.round((filledFields.length / fields.length) * 100);
+              
+              return (
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Profile Progress</h3>
+                    <Award className="w-4 h-4 text-indigo-600" />
                   </div>
-                  <div className="h-2 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: '85%' }}
-                      className="h-full bg-gradient-to-r from-indigo-600 to-violet-600"
-                    />
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-end">
+                      <span className="text-xl font-black text-gray-900">{progress}%</span>
+                      <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">
+                        {progress === 100 ? 'Complete!' : 'Almost there!'}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progress}%` }}
+                        className="h-full bg-gradient-to-r from-indigo-600 to-violet-600"
+                      />
+                    </div>
+                    <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
+                      {progress === 100 ? 'Your profile is fully optimized!' : 'Complete your travel preferences for better matches.'}
+                    </p>
                   </div>
-                  <p className="text-[10px] text-gray-500 font-medium leading-relaxed">Complete your travel preferences for better matches.</p>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Travel Vibe */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -748,6 +808,38 @@ export const ProfilePage: React.FC = () => {
               await refreshProfile();
             }}
           />
+        )}
+        {showLogoutConfirm && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center"
+            >
+              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <AlertCircle className="w-8 h-8 text-red-500" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Are you sure?</h3>
+              <p className="text-gray-600 mb-8">
+                You're about to log out of your account. You'll need to sign in again to access your trips.
+              </p>
+              <div className="flex flex-col space-y-3">
+                <button
+                  onClick={handleLogout}
+                  className="w-full py-3.5 bg-red-500 text-white rounded-2xl font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-100"
+                >
+                  Yes, Log Out
+                </button>
+                <button
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="w-full py-3.5 bg-gray-50 text-gray-700 rounded-2xl font-bold hover:bg-gray-100 transition-all"
+                >
+                  No, Stay Logged In
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

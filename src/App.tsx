@@ -26,6 +26,7 @@ import { ChatList } from './pages/Messages/ChatList';
 import { ChatRoom } from './pages/Messages/ChatRoom';
 import { BuddyFinder } from './pages/Feed/BuddyFinder';
 import { Notifications } from './pages/Notifications/Notifications';
+import { Settings } from './pages/Settings';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, profile, loading } = useAuth();
@@ -129,6 +130,14 @@ export default function App() {
                 } 
               />
               {/* Placeholder for other routes */}
+              <Route 
+                path="/settings" 
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                } 
+              />
               <Route 
                 path="/profile" 
                 element={

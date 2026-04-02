@@ -103,7 +103,7 @@ service cloud.firestore {
              data.status in ['open', 'full', 'ongoing', 'completed', 'cancelled'] &&
              (!('settings' in data) || (
                data.settings is map &&
-               data.settings.privacy in ['public', 'private'] &&
+               data.settings.privacy in ['public', 'private', 'invite_only'] &&
                data.settings.show_exact_location is bool &&
                data.settings.notification_preferences is map
              )) &&
@@ -134,12 +134,12 @@ service cloud.firestore {
     }
 
     match /trips/{tripId} {
-      allow read: if isAuthenticated() && (
-        isTripOrganizer(resource.data) ||
-        isTripMember(tripId) ||
-        isAdmin() ||
-        (!('settings' in resource.data) || !('privacy' in resource.data.settings) || resource.data.settings.privacy == 'public')
-      );
+      allow read: if (!('settings' in resource.data) || !('privacy' in resource.data.settings) || resource.data.settings.privacy in ['public', 'invite_only']) || 
+                     (isAuthenticated() && (
+                       isTripOrganizer(resource.data) ||
+                       isTripMember(tripId) ||
+                       isAdmin()
+                     ));
       
       allow create: if isAuthenticated() && 
                       isValidTrip(request.resource.data) &&

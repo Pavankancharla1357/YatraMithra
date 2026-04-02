@@ -119,7 +119,9 @@ export const ChatRoom: React.FC = () => {
                   name: userData.name || 'Traveler',
                   type: 'direct',
                   otherUserId: otherUserId,
-                  photoUrl: userData.photo_url
+                  photoUrl: userData.photo_url,
+                  isOnline: userData.is_online,
+                  lastSeen: userData.last_seen
                 });
                 setLoading(false);
               }
@@ -206,7 +208,9 @@ export const ChatRoom: React.FC = () => {
                   channelInfo?.destination_city ? `${channelInfo.destination_city} Group` : (channelInfo?.name || 'Chat')
                 )}
               </h3>
-              <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest">Online</span>
+              <span className={`text-[10px] font-bold uppercase tracking-widest ${channelInfo?.isOnline ? 'text-emerald-500' : 'text-gray-400'}`}>
+                {channelInfo?.type === 'group' ? 'Group Chat' : (channelInfo?.isOnline ? 'Online' : 'Offline')}
+              </span>
             </div>
           </div>
         </div>

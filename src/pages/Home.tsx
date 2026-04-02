@@ -1,23 +1,51 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Home as HomeIcon, Compass, Users, Shield, MapPin, ArrowRight, Star, Globe, Heart, CheckCircle, Plane, Camera, MessageSquare, Sparkles, IndianRupee, Calendar, Plus, Search } from 'lucide-react';
+import { Home as HomeIcon, Compass, Users, Shield, MapPin, ArrowRight, Star, Globe, Heart, CheckCircle, Plane, Camera, MessageSquare, Sparkles, IndianRupee, Calendar, Plus, Search, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../components/Auth/AuthContext';
 import { TripCard } from '../components/Trips/TripCard';
+import { db } from '../firebase';
+import { collection, query, where, limit, getDocs, orderBy } from 'firebase/firestore';
 
 export const Home: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const [searchDate, setSearchDate] = React.useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchDate, setSearchDate] = useState('');
+  const [liveTrips, setLiveTrips] = useState<any[]>([]);
+  const [tripsLoading, setTripsLoading] = useState(true);
 
   useEffect(() => {
-    if (!loading && user) {
+    if (!authLoading && user) {
       navigate('/discover');
     }
-  }, [user, loading, navigate]);
+  }, [user, authLoading, navigate]);
 
-  if (loading) return null;
+  useEffect(() => {
+    const fetchLiveTrips = async () => {
+      setTripsLoading(true);
+      try {
+        // Fetch public, open trips
+        const q = query(
+          collection(db, 'trips'),
+          where('status', '==', 'open'),
+          where('settings.privacy', '==', 'public'),
+          limit(3)
+        );
+        const snapshot = await getDocs(q);
+        const trips = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setLiveTrips(trips);
+      } catch (error) {
+        console.error("Error fetching live trips:", error);
+      } finally {
+        setTripsLoading(false);
+      }
+    };
+
+    fetchLiveTrips();
+  }, []);
+
+  if (authLoading) return null;
   if (user) return null;
 
   const destinations = [
@@ -180,58 +208,23 @@ export const Home: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            {[
-              { 
-                id: '1',
-                destination_city: "Leh", 
-                destination_country: "Ladakh",
-                start_date: "2026-04-15", 
-                end_date: "2026-04-22", 
-                budget_max: 25000, 
-                current_members: 3, 
-                max_members: 5, 
-                cover_image: "https://images.unsplash.com/photo-1581791534721-e599df4417f7?auto=format&fit=crop&w=800&q=80",
-                organizer_id: 'dummy1',
-                organizer_name: 'Ananya S.',
-                organizer_photo_url: 'https://i.pravatar.cc/150?img=32',
-                organizer_verified: true,
-                travel_style: 'Adventure'
-              },
-              { 
-                id: '2',
-                destination_city: "Goa", 
-                destination_country: "India",
-                start_date: "2026-04-10", 
-                end_date: "2026-04-14", 
-                budget_max: 12000, 
-                current_members: 4, 
-                max_members: 6, 
-                cover_image: "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=800&q=80",
-                organizer_id: 'dummy2',
-                organizer_name: 'Rahul M.',
-                organizer_photo_url: 'https://i.pravatar.cc/150?img=11',
-                organizer_verified: true,
-                travel_style: 'Relaxation'
-              },
-              { 
-                id: '3',
-                destination_city: "Rishikesh", 
-                destination_country: "Uttarakhand",
-                start_date: "2026-04-12", 
-                end_date: "2026-04-16", 
-                budget_max: 8000, 
-                current_members: 2, 
-                max_members: 4, 
-                cover_image: "https://images.unsplash.com/photo-1598977123418-45454503889a?auto=format&fit=crop&w=800&q=80",
-                organizer_id: 'dummy3',
-                organizer_name: 'Priya K.',
-                organizer_photo_url: 'https://i.pravatar.cc/150?img=44',
-                organizer_verified: true,
-                travel_style: 'Spiritual'
-              }
-            ].map((trip) => (
-              <TripCard key={trip.id} trip={trip} />
-            ))}
+            {tripsLoading ? (
+              [1, 2, 3].map(i => (
+                <div key={i} className="bg-gray-50 rounded-[2.5rem] h-96 animate-pulse" />
+              ))
+            ) : liveTrips.length > 0 ? (
+              liveTrips.map((trip) => (
+                <TripCard key={trip.id} trip={trip} />
+              ))
+            ) : (
+              <div className="col-span-full text-center py-12 bg-gray-50 rounded-[2.5rem] border border-dashed border-gray-200">
+                <Compass className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 font-medium">No live trips available at the moment.</p>
+                <Link to="/trips/create" className="text-indigo-600 font-bold mt-2 inline-block hover:underline">
+                  Be the first to create one!
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </section>
