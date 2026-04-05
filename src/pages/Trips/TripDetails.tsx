@@ -13,7 +13,8 @@ import {
   addDoc, 
   serverTimestamp, 
   deleteDoc,
-  arrayUnion
+  arrayUnion,
+  onSnapshot
 } from 'firebase/firestore';
 import { useAuth } from '../../components/Auth/AuthContext';
 import { generateInviteCode } from '../../services/inviteService';
@@ -55,6 +56,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 
 enum OperationType {
   CREATE = 'create',
@@ -177,6 +179,7 @@ const TripDetails: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'itinerary'>('overview');
   const [messaging, setMessaging] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     overview: true,
     itinerary: true,
@@ -196,6 +199,30 @@ const TripDetails: React.FC = () => {
   };
 
   const parseItinerary = (text: any) => {
+    if (!text) return [];
+    
+    // If it's the full itinerary object (from FullItinerary interface)
+    if (typeof text === 'object' && !Array.isArray(text) && text.days && Array.isArray(text.days)) {
+      return text.days.map((dayObj: any, index: number) => ({
+        day: dayObj.day || index + 1,
+        marker: `Day ${dayObj.day || index + 1}`,
+        title: dayObj.title || (dayObj.plan && Array.isArray(dayObj.plan) ? dayObj.plan[0]?.activity : 'Plan'),
+        content: Array.isArray(dayObj.plan) 
+          ? dayObj.plan.map((p: any) => `${p.time || ''} - ${p.activity || ''} (${p.location || ''})`).join('\n')
+          : (typeof dayObj.plan === 'string' ? dayObj.plan : JSON.stringify(dayObj.plan))
+      }));
+    }
+
+    // If it's already an array of objects (e.g. from structured AI output)
+    if (Array.isArray(text)) {
+      return text.map((item, index) => ({
+        day: item.day || index + 1,
+        marker: `Day ${item.day || index + 1}`,
+        title: item.title || (item.activities && Array.isArray(item.activities) ? item.activities[0] : 'Activities'),
+        content: Array.isArray(item.activities) ? item.activities.join('\n') : (typeof item.activities === 'string' ? item.activities : JSON.stringify(item.activities))
+      }));
+    }
+
     if (typeof text !== 'string' || !text.trim()) return [];
     // Split by "Day X" or "DayX" (case insensitive)
     const dayMarkers = text.match(/Day\s*\d+/gi);
@@ -260,6 +287,16 @@ const TripDetails: React.FC = () => {
 
   const handleMessageOrganizer = async () => {
     if (!user || !trip?.organizer_id || user.uid === trip.organizer_id) return;
+
+    if (connectionStatus !== 'accepted') {
+      toast.error('You must be connected with the organizer to message them.', {
+        action: {
+          label: 'View Profile',
+          onClick: () => navigate(`/profile/${trip.organizer_id}`)
+        }
+      });
+      return;
+    }
 
     setMessaging(true);
     try {
@@ -520,6 +557,36 @@ const TripDetails: React.FC = () => {
     });
     return () => unsubscribe();
   }, [trip?.organizer_id]);
+
+  useEffect(() => {
+    if (!user || !trip?.organizer_id || user.uid === trip.organizer_id) {
+      setConnectionStatus(null);
+      return;
+    }
+
+    const connId = [user.uid, trip.organizer_id].sort().join('_');
+    const unsubscribe = onSnapshot(doc(db, 'connections', connId), (docSnap) => {
+      if (docSnap.exists()) {
+        setConnectionStatus(docSnap.data().status);
+      } else {
+        setConnectionStatus(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user, trip?.organizer_id]);
+
+  // Ensure trip has an invite_code (for legacy trips)
+  useEffect(() => {
+    if (!trip || !id || !user || trip.organizer_id !== user.uid) return;
+    
+    if (!trip.invite_code) {
+      console.log('Generating missing invite code for trip:', id);
+      updateDoc(doc(db, 'trips', id), { 
+        invite_code: generateInviteCode() 
+      }).catch(err => console.error('Error generating invite code:', err));
+    }
+  }, [trip, id, user]);
 
   useEffect(() => {
     if (!id) return;
@@ -1191,13 +1258,17 @@ const TripDetails: React.FC = () => {
                   <div className="w-full py-4 bg-amber-50 text-amber-600 rounded-2xl font-black uppercase tracking-widest text-[10px] text-center border border-amber-100">
                     Request Pending
                   </div>
-                ) : (
+                ) : (trip.settings?.privacy === 'public' || !trip.settings?.privacy) ? (
                   <button
                     onClick={() => setShowJoinModal(true)}
                     className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-700 transition-all flex items-center justify-center shadow-lg shadow-indigo-100"
                   >
                     <UserPlus className="w-5 h-5 mr-2" /> Request to Join
                   </button>
+                ) : (
+                  <div className="w-full py-4 bg-gray-50 text-gray-400 rounded-2xl font-black uppercase tracking-widest text-[10px] text-center border border-gray-100">
+                    Invite Only Trip
+                  </div>
                 )}
               </div>
               

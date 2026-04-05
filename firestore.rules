@@ -111,6 +111,12 @@ service cloud.firestore {
              (!('invite_count' in data) || data.invite_count is int);
     }
 
+    function areConnected(uid1, uid2) {
+      let connId = uid1 < uid2 ? uid1 + '_' + uid2 : uid2 + '_' + uid1;
+      return exists(/databases/$(database)/documents/connections/$(connId)) && 
+             get(/databases/$(database)/documents/connections/$(connId)).data.status == 'accepted';
+    }
+
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isOwner(userId) && request.resource.data.uid == request.auth.uid;
@@ -134,12 +140,10 @@ service cloud.firestore {
     }
 
     match /trips/{tripId} {
-      allow read: if (!('settings' in resource.data) || !('privacy' in resource.data.settings) || resource.data.settings.privacy in ['public', 'invite_only']) || 
-                     (isAuthenticated() && (
-                       isTripOrganizer(resource.data) ||
-                       isTripMember(tripId) ||
-                       isAdmin()
-                     ));
+      // Allow authenticated users to read any trip metadata.
+      // Allow unauthenticated users to read public or invite-only trips for the landing page and discovery.
+      allow read: if isAuthenticated() || 
+                    (resource != null && resource.data.settings.privacy in ['public', 'invite_only']);
       
       allow create: if isAuthenticated() && 
                       isValidTrip(request.resource.data) &&
@@ -211,14 +215,62 @@ service cloud.firestore {
       allow update, delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
     }
 
+    match /connections/{connectionId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.sender_id || 
+        request.auth.uid == resource.data.receiver_id ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && 
+                      request.resource.data.sender_id == request.auth.uid &&
+                      request.resource.data.sender_id != request.resource.data.receiver_id &&
+                      request.resource.data.status == 'pending';
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == resource.data.receiver_id && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+         request.resource.data.status in ['accepted', 'rejected']) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        request.auth.uid == resource.data.sender_id || 
+        request.auth.uid == resource.data.receiver_id ||
+        isAdmin()
+      );
+    }
+
+    match /trip_invites/{inviteId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+                      exists(/databases/$(database)/documents/trips/$(request.resource.data.trip_id)) &&
+                      (
+                        get(/databases/$(database)/documents/trips/$(request.resource.data.trip_id)).data.organizer_id == request.auth.uid ||
+                        (
+                          exists(/databases/$(database)/documents/trip_members/$(request.auth.uid + '_' + request.resource.data.trip_id)) &&
+                          get(/databases/$(database)/documents/trip_members/$(request.auth.uid + '_' + request.resource.data.trip_id)).data.status == 'approved'
+                        )
+                      );
+      allow update, delete: if isAuthenticated() && (
+        request.auth.uid == resource.data.inviter_id ||
+        isAdmin()
+      );
+    }
+
     match /channels/{channelId} {
+      // Refined read rule: allow if user is a participant, it's a trip channel, or user is admin.
+      // This is simple enough for Firestore queries to be covered.
       allow read: if isAuthenticated() && (
         request.auth.uid in resource.data.participants || 
-        isAdmin() ||
-        (exists(/databases/$(database)/documents/trips/$(channelId)) && 
-         request.auth.uid == get(/databases/$(database)/documents/trips/$(channelId)).data.organizer_id)
+        resource.data.type == 'trip' ||
+        isAdmin()
       );
-      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participants;
+      
+      allow create: if isAuthenticated() && (
+        (request.resource.data.type == 'direct' && (
+          request.auth.uid in request.resource.data.participants &&
+          areConnected(request.resource.data.participants[0], request.resource.data.participants[1])
+        )) ||
+        (request.resource.data.type == 'trip' && request.auth.uid in request.resource.data.participants)
+      );
       allow update: if isAuthenticated() && (
         request.auth.uid in resource.data.participants || 
         isAdmin() ||
@@ -233,10 +285,30 @@ service cloud.firestore {
     }
 
     match /messages/{messageId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        (resource.data.sender_id == request.auth.uid) ||
+        (resource.data.channel_id != null && (
+          (exists(/databases/$(database)/documents/channels/$(resource.data.channel_id)) && 
+           request.auth.uid in get(/databases/$(database)/documents/channels/$(resource.data.channel_id)).data.participants) ||
+          (exists(/databases/$(database)/documents/trips/$(resource.data.channel_id)) && 
+           (request.auth.uid == get(/databases/$(database)/documents/trips/$(resource.data.channel_id)).data.organizer_id ||
+            exists(/databases/$(database)/documents/trip_members/$(request.auth.uid + '_' + resource.data.channel_id))))
+        ))
+      );
       allow create: if isAuthenticated() && (
-        request.resource.data.sender_id == request.auth.uid || 
-        (request.resource.data.sender_id == 'system' && request.resource.data.message_type == 'system')
+        (request.resource.data.sender_id == request.auth.uid || 
+         (request.resource.data.sender_id == 'system' && request.resource.data.message_type == 'system')) &&
+        (
+          (exists(/databases/$(database)/documents/channels/$(request.resource.data.channel_id)) && 
+           (
+             get(/databases/$(database)/documents/channels/$(request.resource.data.channel_id)).data.type != 'direct' ||
+             areConnected(get(/databases/$(database)/documents/channels/$(request.resource.data.channel_id)).data.participants[0], get(/databases/$(database)/documents/channels/$(request.resource.data.channel_id)).data.participants[1])
+           )) ||
+          (exists(/databases/$(database)/documents/trips/$(request.resource.data.channel_id)) && 
+           (request.auth.uid == get(/databases/$(database)/documents/trips/$(request.resource.data.channel_id)).data.organizer_id ||
+            exists(/databases/$(database)/documents/trip_members/$(request.auth.uid + '_' + request.resource.data.channel_id))))
+        )
       );
       allow delete: if isAuthenticated() && (
         request.auth.uid == resource.data.sender_id ||
@@ -250,7 +322,17 @@ service cloud.firestore {
 
     match /trip_members/{memberId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated() && 
+                      memberId == request.resource.data.user_id + '_' + request.resource.data.trip_id &&
+                      request.resource.data.user_id == request.auth.uid &&
+                      (
+                        // Joining via token-based invite
+                        ('invite_token' in request.resource.data && exists(/databases/$(database)/documents/trip_invites/$(request.resource.data.invite_token))) ||
+                        // Joining via code-based invite
+                        ('invite_code' in request.resource.data && get(/databases/$(database)/documents/trips/$(request.resource.data.trip_id)).data.invite_code == request.resource.data.invite_code) ||
+                        // Joining public trip
+                        get(/databases/$(database)/documents/trips/$(request.resource.data.trip_id)).data.settings.privacy == 'public'
+                      );
       allow update, delete: if isAuthenticated() && (
         isAdmin() ||
         request.auth.uid == resource.data.user_id ||
@@ -263,6 +345,10 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow update: if isOwner(resource.data.user_id) && 
                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read']);
+    }
+
+    match /test/{docId} {
+      allow read: if true;
     }
 
     match /reviews/{reviewId} {

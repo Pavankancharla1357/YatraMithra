@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '../../firebase';
-import { doc, onSnapshot, collection, query, where, getDocs, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
-import { User, MapPin, Shield, Star, Plane, MessageSquare, Instagram, Linkedin, Twitter, Globe, Camera, Users, Calendar, Edit2, Zap, Check, ChevronRight, Settings, LogOut, Award, Heart, Send, Plus, AlertCircle } from 'lucide-react';
+import { doc, onSnapshot, collection, query, where, getDocs, getDoc, orderBy, addDoc, serverTimestamp, deleteDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { User, MapPin, Shield, Star, Plane, MessageSquare, Instagram, Linkedin, Twitter, Globe, Camera, Users, Calendar, Edit2, Zap, Check, ChevronRight, Settings, LogOut, Award, Heart, Send, Plus, AlertCircle, UserPlus, UserMinus, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../components/Auth/AuthContext';
+import { toast } from 'sonner';
 import { TripCard } from '../../components/Trips/TripCard';
 import { ReviewSystem } from '../../components/Profile/ReviewSystem';
 import { EditProfileModal } from '../../components/Profile/EditProfileModal';
 import { TravelVibeQuiz } from '../../components/Profile/TravelVibeQuiz';
+import { InviteToTripModal } from '../../components/Profile/InviteToTripModal';
 import { subscribeToUserRating } from '../../services/reviewService';
+import { createNotification } from '../../services/notificationService';
 
 export const ProfilePage: React.FC = () => {
   const { uid } = useParams<{ uid: string }>();
@@ -23,8 +26,12 @@ export const ProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'about' | 'trips' | 'reviews' | 'activity' | 'security'>('about');
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connection, setConnection] = useState<any>(null);
   const [showQuiz, setShowQuiz] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
   const [messaging, setMessaging] = useState(false);
 
   const isOwner = !uid || user?.uid === uid;
@@ -56,24 +63,83 @@ export const ProfilePage: React.FC = () => {
 
     const fetchUserData = async () => {
       try {
-        const [tripsSnapshot, buddySnapshot] = await Promise.all([
-          getDocs(query(collection(db, 'trips'), where('organizer_id', '==', targetUid))),
-          getDocs(query(collection(db, 'buddy_posts'), where('user_id', '==', targetUid), orderBy('created_at', 'desc')))
+        // 1. Fetch organized trips
+        const organizerQ = query(collection(db, 'trips'), where('organizer_id', '==', targetUid));
+        
+        // 2. Fetch joined trips (memberships)
+        // Remove 'status' where clause to avoid composite index requirement
+        const memberQ = query(
+          collection(db, 'trip_members'),
+          where('user_id', '==', targetUid)
+        );
+
+        const [organizerSnapshot, memberSnapshot, buddySnapshot] = await Promise.all([
+          getDocs(organizerQ),
+          getDocs(memberQ),
+          getDocs(query(collection(db, 'buddy_posts'), where('user_id', '==', targetUid)))
         ]);
 
-        setTrips(tripsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        setBuddyPosts(buddySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        const organizedTrips = organizerSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), isOrganizer: true }));
+        
+        // Filter approved memberships in memory
+        const joinedTripIds = memberSnapshot.docs
+          .filter(doc => doc.data().status === 'approved')
+          .map(doc => doc.data().trip_id);
+        
+        const joinedTripsPromises = joinedTripIds
+          .filter(id => !organizedTrips.some(t => t.id === id)) // Avoid duplicates
+          .map(async (id) => {
+            const tripSnap = await getDoc(doc(db, 'trips', id));
+            if (tripSnap.exists()) {
+              return { id: tripSnap.id, ...tripSnap.data(), isOrganizer: false };
+            }
+            return null;
+          });
+        
+        const joinedTrips = (await Promise.all(joinedTripsPromises)).filter(t => t !== null);
+
+        setTrips([...organizedTrips, ...joinedTrips].sort((a: any, b: any) => {
+          const dateA = new Date(a.start_date || 0).getTime();
+          const dateB = new Date(b.start_date || 0).getTime();
+          return dateB - dateA; // Newest first
+        }));
+        
+        // Sort buddy posts in memory
+        const posts = buddySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const sortedPosts = posts.sort((a: any, b: any) => {
+          const timeA = a.created_at?.seconds || 0;
+          const timeB = b.created_at?.seconds || 0;
+          return timeB - timeA;
+        });
+        setBuddyPosts(sortedPosts);
       } catch (error) {
         console.error('Error fetching user data:', error);
       }
     };
 
+    const subscribeToConnection = () => {
+      if (!user || !targetUid || isOwner) return () => {};
+      const connId = [user.uid, targetUid].sort().join('_');
+      return onSnapshot(doc(db, 'connections', connId), (docSnap) => {
+        if (docSnap.exists()) {
+          setConnection(docSnap.data());
+        } else {
+          setConnection(null);
+        }
+      }, (error) => {
+        console.error('Error in connection snapshot:', error);
+        setConnection(null);
+      });
+    };
+
     fetchUserData();
+    const unsubscribeConn = subscribeToConnection();
     return () => {
       unsubscribeRating();
       unsubscribeProfile();
+      unsubscribeConn();
     };
-  }, [targetUid]);
+  }, [targetUid, user]);
 
   const handleLogout = async () => {
     try {
@@ -85,49 +151,207 @@ export const ProfilePage: React.FC = () => {
   };
 
   const handleMessage = async () => {
-    if (!user || !targetUid || isOwner) return;
+    if (!user) {
+      navigate('/login', { state: { from: `/profile/${targetUid}` } });
+      return;
+    }
+    if (!targetUid || isOwner) return;
 
+    const toastId = toast.loading('Initiating chat...');
     setMessaging(true);
     try {
+      console.log('--- handleMessage Start ---');
+      console.log('Target UID:', targetUid);
+      
       // Check if a direct channel already exists
+      console.log('Querying existing channels...');
       const q = query(
         collection(db, 'channels'),
         where('type', '==', 'direct'),
         where('participants', 'array-contains', user.uid)
       );
       
-      const snapshot = await getDocs(q);
-      let existingChannel = snapshot.docs.find(doc => 
-        doc.data().participants.includes(targetUid)
+      let snapshot;
+      try {
+        snapshot = await getDocs(q);
+        console.log('Channels found:', snapshot.size);
+      } catch (err: any) {
+        console.error('Error querying channels:', err);
+        throw new Error(`Permission denied reading channels: ${err.message}`);
+      }
+
+      let existingChannel = snapshot.docs.find(docSnap => 
+        docSnap.data().participants.includes(targetUid)
       );
 
       if (existingChannel) {
+        console.log('Existing channel found:', existingChannel.id);
+        
+        // Clear deleted flag if it exists
+        await setDoc(doc(db, 'users', user.uid, 'chat_settings', existingChannel.id), { 
+          deleted: false 
+        }, { merge: true });
+
+        // Update last message time to bring it to top
+        await updateDoc(doc(db, 'channels', existingChannel.id), {
+          last_message_time: serverTimestamp()
+        });
+
+        toast.dismiss(toastId);
         navigate(`/messages/${existingChannel.id}`);
       } else {
+        console.log('Creating new channel...');
         // Create new channel
-        const newChannelRef = await addDoc(collection(db, 'channels'), {
-          type: 'direct',
-          participants: [user.uid, targetUid],
-          last_message_time: serverTimestamp(),
-          last_message: `Started a conversation with ${profile.name}`
-        });
+        let newChannelRef;
+        try {
+          newChannelRef = await addDoc(collection(db, 'channels'), {
+            type: 'direct',
+            participants: [user.uid, targetUid],
+            last_message_time: serverTimestamp(),
+            last_message: `Started a conversation with ${profile?.name || 'User'}`
+          });
+          console.log('New channel created:', newChannelRef.id);
+        } catch (err: any) {
+          console.error('Error creating channel:', err);
+          throw new Error(`Permission denied creating channel: ${err.message}`);
+        }
         
         // Send initial system message
-        await addDoc(collection(db, 'messages'), {
-          channel_id: newChannelRef.id,
-          sender_id: 'system',
-          sender_name: 'YatraMitra Bot',
-          content: `👋 Hi! ${currentUserProfile?.name || 'Someone'} started a conversation with you.`,
-          message_type: 'system',
+        console.log('Sending initial system message...');
+        try {
+          await addDoc(collection(db, 'messages'), {
+            channel_id: newChannelRef.id,
+            sender_id: 'system',
+            sender_name: 'YatraMitra Bot',
+            content: `👋 Hi! ${profile?.name || 'Someone'} started a conversation with you.`,
+            message_type: 'system',
+            created_at: serverTimestamp()
+          });
+          console.log('System message sent');
+        } catch (err: any) {
+          console.error('Error sending system message:', err);
+          // We don't throw here because the channel was already created
+          toast.error('Channel created but failed to send initial message');
+        }
+
+        toast.success('Conversation started!');
+        toast.dismiss(toastId);
+        navigate(`/messages/${newChannelRef.id}`);
+      }
+      console.log('--- handleMessage End ---');
+    } catch (error: any) {
+      console.error('Error initiating chat:', error);
+      toast.error('Failed to start chat: ' + (error.message || 'Unknown error'));
+      toast.dismiss(toastId);
+    } finally {
+      setMessaging(false);
+    }
+  };
+
+  useEffect(() => {
+    console.log('Current connection state:', connection);
+  }, [connection]);
+
+  const handleConnect = async () => {
+    if (!user) {
+      navigate('/login', { state: { from: `/profile/${targetUid}` } });
+      return;
+    }
+    if (!targetUid || isOwner || isConnecting) return;
+
+    // If already connected or pending request from us, show confirmation first
+    const isPendingFromUs = connection?.status === 'pending' && connection.sender_id === user.uid;
+    const isAccepted = connection?.status === 'accepted';
+
+    if ((isAccepted || isPendingFromUs) && !showDisconnectConfirm) {
+      setShowDisconnectConfirm(true);
+      return;
+    }
+
+    setIsConnecting(true);
+    setShowDisconnectConfirm(false);
+    const connId = [user.uid, targetUid].sort().join('_');
+    try {
+      if (!connection) {
+        // Optimistically set pending state
+        const optimisticConnection = {
+          sender_id: user.uid,
+          receiver_id: targetUid,
+          status: 'pending',
+          created_at: new Date()
+        };
+        setConnection(optimisticConnection);
+
+        // Send request
+        await setDoc(doc(db, 'connections', connId), {
+          sender_id: user.uid,
+          receiver_id: targetUid,
+          status: 'pending',
           created_at: serverTimestamp()
         });
 
-        navigate(`/messages/${newChannelRef.id}`);
+        await createNotification(
+          targetUid,
+          'connection_request',
+          'New Connection Request',
+          `${currentUserProfile?.name || 'A traveler'} wants to connect with you.`,
+          `/profile/${user.uid}`
+        );
+        toast.success('Connection request sent!');
+      } else if (connection.status === 'pending' && connection.receiver_id === user.uid) {
+        // Accept request
+        const updatedConnection = { ...connection, status: 'accepted' };
+        setConnection(updatedConnection); // Optimistic
+        await updateDoc(doc(db, 'connections', connId), {
+          status: 'accepted'
+        });
+
+        await createNotification(
+          connection.sender_id,
+          'connection_accepted',
+          'Connection Accepted',
+          `${currentUserProfile?.name || 'A traveler'} accepted your connection request!`,
+          `/profile/${user.uid}`
+        );
+        toast.success('Connection accepted!');
+      } else if (connection.status === 'accepted' || (connection.status === 'pending' && connection.sender_id === user.uid)) {
+        // Disconnect or Cancel request
+        setConnection(null); // Optimistic
+        await deleteDoc(doc(db, 'connections', connId));
+        const message = connection.status === 'accepted' ? 'Disconnected' : 'Request cancelled';
+        toast.info(message);
       }
     } catch (error) {
-      console.error('Error initiating chat:', error);
+      console.error('Error handling connection:', error);
+      toast.error('Failed to update connection. Please try again.');
     } finally {
-      setMessaging(false);
+      setIsConnecting(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!user || !targetUid || !connection || isConnecting) return;
+    setIsConnecting(true);
+    const connId = [user.uid, targetUid].sort().join('_');
+    try {
+      // Send notification to the sender
+      await createNotification(
+        connection.sender_id,
+        'connection_rejected',
+        'Request Declined',
+        `${currentUserProfile?.name || 'A traveler'} declined your connection request.`,
+        `/profile/${user.uid}`
+      );
+
+      // Delete the connection document instead of setting to rejected
+      await deleteDoc(doc(db, 'connections', connId));
+      
+      toast.info('Connection request rejected');
+    } catch (error) {
+      console.error('Error rejecting connection:', error);
+      toast.error('Failed to reject request');
+    } finally {
+      setIsConnecting(false);
     }
   };
 
@@ -338,21 +562,76 @@ export const ProfilePage: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <div className="flex gap-3">
-                      <button className="flex-1 px-6 py-4 bg-white text-gray-900 rounded-2xl font-black text-xs hover:bg-gray-50 transition-all flex items-center justify-center gap-2 shadow-xl active:scale-95">
-                        <Users className="w-4 h-4" />
-                        Connect
-                      </button>
+                    <div className="flex flex-col sm:flex-row gap-3 w-full">
+                      {connection?.status === 'pending' && connection.receiver_id === user.uid ? (
+                        <>
+                          <button 
+                            onClick={handleConnect}
+                            disabled={isConnecting}
+                            className="flex-1 px-6 py-4 bg-amber-50 text-amber-600 border border-amber-100 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-xl active:scale-95 disabled:opacity-50"
+                          >
+                            <Check className="w-4 h-4" />
+                            Accept Request
+                          </button>
+                          <button 
+                            onClick={handleReject}
+                            disabled={isConnecting}
+                            className="flex-1 px-6 py-4 bg-rose-50 text-rose-600 border border-rose-100 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-xl active:scale-95 disabled:opacity-50"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            Reject
+                          </button>
+                        </>
+                      ) : (
+                        <button 
+                          onClick={handleConnect}
+                          disabled={isConnecting}
+                          className={`flex-1 px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-xl active:scale-95 disabled:opacity-50 ${
+                            connection?.status === 'accepted'
+                              ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                              : connection?.status === 'pending'
+                                ? 'bg-amber-50 text-amber-600 border border-amber-100'
+                                : 'bg-white text-gray-900 hover:bg-gray-50'
+                          }`}
+                        >
+                          {connection?.status === 'accepted' ? (
+                            <Check className="w-4 h-4" />
+                          ) : connection?.status === 'pending' ? (
+                            <Zap className="w-4 h-4" />
+                          ) : (
+                            <UserPlus className="w-4 h-4" />
+                          )}
+                          {connection?.status === 'accepted' 
+                            ? 'Disconnect' 
+                            : connection?.status === 'pending'
+                              ? 'Cancel Request'
+                              : 'Connect'}
+                        </button>
+                      )}
+                      
                       <button 
                         onClick={handleMessage}
-                        disabled={messaging}
-                        className="flex-1 px-6 py-4 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-2xl font-black text-xs hover:bg-white/20 transition-all flex items-center justify-center gap-2 shadow-xl disabled:opacity-50 active:scale-95"
+                        disabled={messaging || connection?.status !== 'accepted'}
+                        className={`flex-1 px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-xl active:scale-95 disabled:opacity-50 ${
+                          connection?.status === 'accepted'
+                            ? 'bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20'
+                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        }`}
                       >
                         <MessageSquare className="w-4 h-4" />
                         {messaging ? '...' : 'Message'}
                       </button>
                     </div>
-                    <button className="w-full px-8 py-4 bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 text-white rounded-2xl font-black text-xs hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all flex items-center justify-center gap-2 group relative overflow-hidden shadow-xl active:scale-95">
+                    <button 
+                      onClick={() => {
+                        if (!user) {
+                          navigate('/login', { state: { from: `/profile/${targetUid}` } });
+                        } else {
+                          setShowInviteModal(true);
+                        }
+                      }}
+                      className="w-full px-8 py-4 bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 text-white rounded-2xl font-black text-xs hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all flex items-center justify-center gap-2 group relative overflow-hidden shadow-xl active:scale-95"
+                    >
                       <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-[-20deg]" />
                       <Plane className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                       Invite to Trip
@@ -799,6 +1078,13 @@ export const ProfilePage: React.FC = () => {
             }}
           />
         )}
+
+        {showInviteModal && (
+          <InviteToTripModal 
+            targetUser={{ ...profile, uid: targetUid! }} 
+            onClose={() => setShowInviteModal(false)} 
+          />
+        )}
         {showQuiz && isOwner && (
           <TravelVibeQuiz 
             userId={targetUid!}
@@ -836,6 +1122,43 @@ export const ProfilePage: React.FC = () => {
                   className="w-full py-3.5 bg-gray-50 text-gray-700 rounded-2xl font-bold hover:bg-gray-100 transition-all"
                 >
                   No, Stay Logged In
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+        {showDisconnectConfirm && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center"
+            >
+              <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <UserMinus className="w-8 h-8 text-amber-500" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                {connection?.status === 'accepted' ? 'Disconnect?' : 'Cancel Request?'}
+              </h3>
+              <p className="text-gray-600 mb-8">
+                {connection?.status === 'accepted' 
+                  ? `Are you sure you want to disconnect from ${profile.name}? You won't be able to message them directly until you reconnect.`
+                  : `Are you sure you want to cancel your connection request to ${profile.name}?`
+                }
+              </p>
+              <div className="flex flex-col space-y-3">
+                <button
+                  onClick={handleConnect}
+                  className="w-full py-3.5 bg-amber-500 text-white rounded-2xl font-bold hover:bg-amber-600 transition-all shadow-lg shadow-amber-100"
+                >
+                  {connection?.status === 'accepted' ? 'Yes, Disconnect' : 'Yes, Cancel Request'}
+                </button>
+                <button
+                  onClick={() => setShowDisconnectConfirm(false)}
+                  className="w-full py-3.5 bg-gray-50 text-gray-700 rounded-2xl font-bold hover:bg-gray-100 transition-all"
+                >
+                  No, Keep it
                 </button>
               </div>
             </motion.div>

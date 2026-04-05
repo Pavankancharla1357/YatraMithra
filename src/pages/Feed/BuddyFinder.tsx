@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, getDocs, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { useAuth } from '../../components/Auth/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapPin, Calendar, Send, User, Sparkles, Users, MessageSquare, Heart, Star, Info, Filter, ChevronDown, Plus, X, Bookmark, Share2, MoreHorizontal, Search } from 'lucide-react';
 import { handleFirestoreError, OperationType } from '../../utils/firestoreErrorHandler';
 import { Link, useNavigate } from 'react-router-dom';
 import { getAiBuddyRecommendations, BuddyMatch } from '../../services/geminiBuddyService';
+import { toast } from 'sonner';
 
 interface BuddyPost {
   id: string;
@@ -235,6 +236,21 @@ export const BuddyFinder: React.FC = () => {
     if (!user || user.uid === targetUserId) return;
 
     try {
+      // Check connection status first
+      const connId = [user.uid, targetUserId].sort().join('_');
+      const connSnap = await getDoc(doc(db, 'connections', connId));
+      const connection = connSnap.exists() ? connSnap.data() : null;
+
+      if (!connection || connection.status !== 'accepted') {
+        toast.error(`You must be connected with ${targetName} to message them.`, {
+          action: {
+            label: 'View Profile',
+            onClick: () => navigate(`/profile/${targetUserId}`)
+          }
+        });
+        return;
+      }
+
       // Check if a direct channel already exists
       const q = query(
         collection(db, 'channels'),
@@ -248,6 +264,16 @@ export const BuddyFinder: React.FC = () => {
       );
 
       if (existingChannel) {
+        // Clear deleted flag if it exists
+        await setDoc(doc(db, 'users', user.uid, 'chat_settings', existingChannel.id), { 
+          deleted: false 
+        }, { merge: true });
+        
+        // Update last message time to bring it to top
+        await updateDoc(doc(db, 'channels', existingChannel.id), {
+          last_message_time: serverTimestamp()
+        });
+        
         navigate(`/messages/${existingChannel.id}`);
       } else {
         // Create new channel
@@ -852,7 +878,7 @@ export const BuddyFinder: React.FC = () => {
                           onClick={() => handleMessage(match.uid, match.name)}
                           className="py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 transition-all duration-300"
                         >
-                          Connect
+                          Message
                         </motion.button>
                       </div>
                     </motion.div>

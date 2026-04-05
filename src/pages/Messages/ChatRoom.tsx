@@ -16,6 +16,7 @@ export const ChatRoom: React.FC = () => {
   const navigate = useNavigate();
   const [messages, setMessages] = useState<any[]>([]);
   const [channelInfo, setChannelInfo] = useState<any>(null);
+  const [connectionStatus, setConnectionStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPollCreator, setShowPollCreator] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -91,6 +92,7 @@ export const ChatRoom: React.FC = () => {
 
     setLoading(true);
     let unsubscribeOtherUser: () => void = () => {};
+    let unsubscribeConn: () => void = () => {};
 
     // 1. Listen for trip info
     const unsubscribeTrip = onSnapshot(doc(db, 'trips', channelId), (snap) => {
@@ -108,6 +110,17 @@ export const ChatRoom: React.FC = () => {
           const otherUserId = data.participants.find((id: string) => id !== user.uid) || data.participants[0];
           
           if (otherUserId) {
+            // Check connection status
+            if (unsubscribeConn) unsubscribeConn();
+            const connId = [user.uid, otherUserId].sort().join('_');
+            unsubscribeConn = onSnapshot(doc(db, 'connections', connId), (connSnap) => {
+              if (connSnap.exists()) {
+                setConnectionStatus(connSnap.data().status);
+              } else {
+                setConnectionStatus(null);
+              }
+            });
+
             // Clean up previous user listener if it exists
             if (unsubscribeOtherUser) unsubscribeOtherUser();
             
@@ -164,6 +177,7 @@ export const ChatRoom: React.FC = () => {
       unsubscribeChannel();
       unsubscribeOtherUser();
       unsubscribeMessages();
+      unsubscribeConn();
     };
   }, [channelId, user]);
 
@@ -255,6 +269,17 @@ export const ChatRoom: React.FC = () => {
         ref={scrollRef}
         className="flex-1 overflow-y-auto p-4 space-y-2 scroll-smooth"
       >
+        {channelInfo?.type === 'direct' && connectionStatus !== 'accepted' && (
+          <div className="p-6 bg-amber-50 rounded-3xl border border-amber-100 text-center mb-6">
+            <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-3 text-amber-600">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <h4 className="text-sm font-black text-amber-900">Connection Required</h4>
+            <p className="text-[10px] text-amber-600 font-bold mt-1 uppercase tracking-widest">
+              You can only chat once your connection request is accepted.
+            </p>
+          </div>
+        )}
         <div className="text-center py-8">
           <div className="inline-block px-4 py-1.5 bg-gray-100 rounded-full text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">
             {channelInfo?.type === 'group' ? 'Trip Created' : 'Chat Started'}
@@ -267,12 +292,20 @@ export const ChatRoom: React.FC = () => {
         </div>
         
         {messages.map((msg) => (
-          <MessageItem key={msg.id} message={msg} />
+          <MessageItem key={msg.id} message={msg} isDirect={channelInfo?.type === 'direct'} />
         ))}
       </div>
 
       {/* Input Area */}
-      <ChatInput channelId={channelId} />
+      {(!channelInfo || channelInfo.type !== 'direct' || connectionStatus === 'accepted') ? (
+        <ChatInput channelId={channelId} />
+      ) : (
+        <div className="p-4 bg-white border-t border-gray-100 text-center">
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+            Messaging is restricted until connected
+          </p>
+        </div>
+      )}
 
       {/* Poll Creator Modal */}
       <AnimatePresence>

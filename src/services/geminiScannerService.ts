@@ -1,28 +1,10 @@
-import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
+import { Type, ThinkingLevel } from "@google/genai";
 import { collection, addDoc, getDocs, query, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
+import { getGeminiInstance } from "./gemini";
 
 const getAi = () => {
-  // Try all possible environment variable names for the Gemini API Key
-  const sources = [
-    process.env.GEMINI_API_KEY_1,
-    process.env.GEMINI_API_KEY,
-    process.env.VITE_GEMINI_API_KEY_1,
-    process.env.VITE_GEMINI_API_KEY,
-    (import.meta as any).env?.VITE_GEMINI_API_KEY_1,
-    (import.meta as any).env?.VITE_GEMINI_API_KEY,
-    (import.meta as any).env?.GEMINI_API_KEY_1,
-    (import.meta as any).env?.GEMINI_API_KEY
-  ];
-
-  // Filter out empty strings and the platform placeholder text
-  const apiKey = sources.find(s => s && s !== '' && s !== 'AI Studio Free Tier');
-
-  if (!apiKey) {
-    console.error("Gemini API Key is missing or invalid in all sources.");
-    throw new Error("Gemini API Key is missing. Please check your Secrets menu.");
-  }
-  return new GoogleGenAI({ apiKey });
+  return getGeminiInstance();
 };
 
 export interface ScannedDocument {

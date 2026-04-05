@@ -32,7 +32,7 @@ interface ItineraryPlannerProps {
   tripId: string;
   isMember: boolean;
   isOrganizer: boolean;
-  initialItinerary?: string;
+  initialItinerary?: any;
   destination?: string;
   travelStyle?: string;
 }
@@ -726,7 +726,7 @@ export const ItineraryPlanner: React.FC<ItineraryPlannerProps> = ({ tripId, isMe
               Organizer's Initial Vision
             </h4>
             <p className="text-amber-800 text-sm whitespace-pre-wrap leading-relaxed italic opacity-80">
-              "{initialItinerary}"
+              {typeof initialItinerary === 'string' ? initialItinerary : JSON.stringify(initialItinerary, null, 2)}
             </p>
           </div>
         </div>

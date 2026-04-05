@@ -18,6 +18,7 @@ import { DiscoverTrips } from './pages/Trips/DiscoverTrips';
 import { CreateTrip } from './pages/Trips/CreateTrip';
 import TripDetails from './pages/Trips/TripDetails';
 import { JoinTrip } from './pages/Trips/JoinTrip';
+import { InvitePage } from './pages/Trips/InvitePage';
 import { TripExpenses } from './pages/Trips/TripExpenses';
 import { DocumentVault } from './pages/Trips/DocumentVault';
 import TravelMatcher from './pages/Trips/TravelMatcher';
@@ -165,6 +166,7 @@ export default function App() {
               />
               <Route path="/trips/:id" element={<TripDetails />} />
               <Route path="/join/:tripId/:inviteCode" element={<JoinTrip />} />
+              <Route path="/invite/:token" element={<InvitePage />} />
               <Route 
                 path="/travel-matcher" 
                 element={

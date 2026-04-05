@@ -31,11 +31,53 @@
   html {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    --accent-color: #4f46e5;
   }
   
   body {
-    @apply antialiased text-gray-900 bg-gray-50;
+    @apply antialiased text-gray-900 bg-gray-50 transition-colors duration-300;
   }
+
+  html.dark body {
+    @apply text-gray-100 bg-gray-950;
+  }
+
+  html.dark .bg-white {
+    @apply bg-gray-900 border-gray-800;
+  }
+
+  html.dark .text-gray-900 {
+    @apply text-white;
+  }
+
+  html.dark .text-gray-500 {
+    @apply text-gray-400;
+  }
+
+  html.dark .bg-gray-50 {
+    @apply bg-gray-800;
+  }
+
+  html.dark .border-gray-100 {
+    @apply border-gray-800;
+  }
+}
+
+/* Accent Color Utilities */
+.text-accent {
+  color: var(--accent-color);
+}
+
+.bg-accent {
+  background-color: var(--accent-color);
+}
+
+.border-accent {
+  border-color: var(--accent-color);
+}
+
+.ring-accent {
+  --tw-ring-color: var(--accent-color);
 }
 
 /* Custom Scrollbar */
@@ -68,18 +110,23 @@
 }
 
 /* React Datepicker Custom Styles */
+.react-datepicker-popper {
+  z-index: 9999 !important;
+}
+
 .react-datepicker {
   font-family: inherit !important;
   border: none !important;
-  border-radius: 1.5rem !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1) !important;
-  padding: 1rem !important;
+  border-radius: 1.25rem !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15) !important;
+  padding: 0.5rem !important;
 }
 
 .react-datepicker__header {
   background-color: white !important;
   border-bottom: none !important;
-  padding-top: 0.5rem !important;
+  padding-top: 0.25rem !important;
+  padding-bottom: 0 !important;
 }
 
 .react-datepicker__current-month {
@@ -87,20 +134,21 @@
   color: #1e293b !important;
   text-transform: uppercase !important;
   letter-spacing: 0.05em !important;
-  font-size: 0.875rem !important;
-  margin-bottom: 0.5rem !important;
+  font-size: 0.75rem !important;
+  margin-bottom: 0.25rem !important;
 }
 
 .react-datepicker__day-name {
   color: #94a3b8 !important;
   font-weight: 600 !important;
-  width: 2.5rem !important;
-  line-height: 2.5rem !important;
+  width: 2rem !important;
+  line-height: 2rem !important;
+  margin: 0.1rem !important;
 }
 
 .react-datepicker__day {
-  width: 2.5rem !important;
-  line-height: 2.5rem !important;
+  width: 2rem !important;
+  line-height: 2rem !important;
   border-radius: 9999px !important;
   margin: 0.1rem !important;
   color: #475569 !important;

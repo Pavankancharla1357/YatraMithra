@@ -131,7 +131,7 @@ export const Notifications: React.FC = () => {
                       </div>
                       
                       <p className="text-sm text-gray-500 mb-4 leading-relaxed">
-                        {n.message}
+                        {n.body || n.message}
                       </p>
                       
                       <div className="flex items-center justify-between">

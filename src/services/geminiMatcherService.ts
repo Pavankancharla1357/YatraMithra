@@ -1,4 +1,5 @@
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { ThinkingLevel } from "@google/genai";
+import { getGeminiInstance } from "./gemini";
 
 export interface MatcherUser {
   budget: string;
@@ -22,11 +23,7 @@ export interface SoulmateResult extends MatchResult {
 }
 
 const getAi = () => {
-  const apiKey = process.env.GEMINI_API_KEY_1 || process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("Gemini API Key is missing. Please ensure it is set in the environment.");
-  }
-  return new GoogleGenAI({ apiKey });
+  return getGeminiInstance();
 };
 
 export const findSoulmate = async (currentUser: MatcherUser, otherUsers: any[]): Promise<SoulmateResult> => {
@@ -76,7 +73,7 @@ export const findSoulmate = async (currentUser: MatcherUser, otherUsers: any[]):
     `;
 
     const result = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-flash-latest",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",
@@ -130,7 +127,7 @@ export const matchTravelers = async (userA: MatcherUser, userB: MatcherUser): Pr
     `;
 
     const result = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-flash-latest",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",

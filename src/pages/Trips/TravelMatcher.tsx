@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Users, 
+  User,
   Heart, 
   Zap, 
   Target, 
@@ -332,7 +333,7 @@ const TravelMatcher: React.FC = () => {
                     onClick={() => navigate(`/profile/${result.soulmate_uid}`)}
                     className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest flex items-center gap-1.5 hover:text-indigo-700 transition-colors"
                   >
-                    <MessageSquare className="w-3.5 h-3.5" />
+                    <User className="w-3.5 h-3.5" />
                     View Profile
                   </button>
                 </div>

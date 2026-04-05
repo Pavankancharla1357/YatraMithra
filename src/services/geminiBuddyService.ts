@@ -1,13 +1,10 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import { db } from "../firebase";
 import { collection, getDocs, query, where, limit } from "firebase/firestore";
+import { getGeminiInstance } from "./gemini";
 
 const getAi = () => {
-  const apiKey = process.env.GEMINI_API_KEY_1 || process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("Gemini API Key is missing. Please ensure it is set in the environment.");
-  }
-  return new GoogleGenAI({ apiKey });
+  return getGeminiInstance();
 };
 
 export interface BuddyMatch {
@@ -53,7 +50,7 @@ export const getAiBuddyRecommendations = async (currentUserProfile: any): Promis
 
     // 3. Call Gemini to rank and explain matches
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-flash-latest",
       contents: `
         Analyze the following user profiles and find the best travel buddy matches for the current user.
         

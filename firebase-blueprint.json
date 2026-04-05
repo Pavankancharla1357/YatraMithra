@@ -125,10 +125,14 @@
       "properties": {
         "trip_id": { "type": "string" },
         "user_id": { "type": "string" },
+        "user_name": { "type": "string" },
+        "user_photo_url": { "type": "string", "format": "uri" },
         "role": { "type": "string", "enum": ["organizer", "member"] },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected", "left"] },
         "request_message": { "type": "string" },
         "joined_via": { "type": "string", "enum": ["request", "invite_link"] },
+        "invite_token": { "type": "string" },
+        "invite_code": { "type": "string" },
         "joined_at": { "type": "string", "format": "date-time" }
       },
       "required": ["trip_id", "user_id", "role", "status"]
@@ -248,6 +252,32 @@
       },
       "required": ["user_id", "type", "confidence", "summary", "details", "created_at"]
     },
+    "Connection": {
+      "title": "Connection",
+      "description": "Connection request between two users",
+      "type": "object",
+      "properties": {
+        "sender_id": { "type": "string" },
+        "receiver_id": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sender_id", "receiver_id", "status"]
+    },
+    "TripInvite": {
+      "title": "Trip Invite",
+      "description": "Invitation to join a trip via a unique link",
+      "type": "object",
+      "properties": {
+        "trip_id": { "type": "string" },
+        "inviter_id": { "type": "string" },
+        "invite_code": { "type": "string" },
+        "token": { "type": "string" },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["trip_id", "inviter_id", "token"]
+    },
     "ChatSettings": {
       "title": "Chat Settings",
       "description": "User-specific settings for a chat channel (pinned, muted, archived, deleted)",
@@ -273,6 +303,8 @@
     "/trips/{tripId}/locations/{userId}": { "schema": "UserLocation", "description": "Real-time locations of trip members" },
     "/reviews/{reviewId}": { "schema": "Review", "description": "User reviews" },
     "/buddy_posts/{postId}": { "schema": "BuddyPost", "description": "Travel buddy posts" },
+    "/connections/{connectionId}": { "schema": "Connection", "description": "User connections" },
+    "/trip_invites/{inviteId}": { "schema": "TripInvite", "description": "Trip invitation tokens" },
     "/channels/{channelId}": { "schema": "Channel", "description": "Chat channels" },
     "/messages/{messageId}": { "schema": "Message", "description": "Chat messages" },
     "/polls/{pollId}": { "schema": "Poll", "description": "Chat polls" },

@@ -9,7 +9,8 @@ import {
   Instagram, 
   Twitter, 
   ExternalLink,
-  Zap
+  Zap,
+  Info
 } from 'lucide-react';
 import { getInviteLink } from '../../services/inviteService';
 
@@ -108,30 +109,39 @@ export const ShareModal: React.FC<ShareModalProps> = ({ trip, onClose }) => {
               <span className="text-sm font-bold text-indigo-900">Instant Join Link</span>
             </div>
             <div className="flex items-center bg-white p-2 rounded-2xl border border-indigo-100">
-              <input
-                type="text"
-                readOnly
-                value={inviteLink}
-                className="flex-1 bg-transparent px-4 py-2 text-sm text-gray-600 outline-none truncate"
-              />
-              <button
-                onClick={handleCopy}
-                className={`px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center space-x-2 ${
-                  copied ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                }`}
-              >
-                {copied ? (
-                  <>
-                    <Check className="w-3 h-3" />
-                    <span>Copied</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3 h-3" />
-                    <span>Copy</span>
-                  </>
-                )}
-              </button>
+              {trip.invite_code ? (
+                <>
+                  <input
+                    type="text"
+                    readOnly
+                    value={inviteLink}
+                    className="flex-1 bg-transparent px-4 py-2 text-sm text-gray-600 outline-none truncate"
+                  />
+                  <button
+                    onClick={handleCopy}
+                    className={`px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center space-x-2 ${
+                      copied ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    }`}
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-3 h-3" />
+                        <span>Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" />
+                        <span>Copy</span>
+                      </>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <div className="flex-1 px-4 py-2 text-xs text-amber-600 font-bold flex items-center">
+                  <Info className="w-4 h-4 mr-2" />
+                  Invite link unavailable for this trip
+                </div>
+              )}
             </div>
           </div>
 
@@ -140,7 +150,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({ trip, onClose }) => {
               <button
                 key={option.name}
                 onClick={option.action}
-                className="flex flex-col items-center space-y-2 group"
+                disabled={!trip.invite_code}
+                className="flex flex-col items-center space-y-2 group disabled:opacity-50 disabled:grayscale"
               >
                 <div className={`w-14 h-14 ${option.color} text-white rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
                   {option.icon}

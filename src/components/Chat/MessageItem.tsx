@@ -7,9 +7,10 @@ import { PollItem } from './PollItem';
 
 interface MessageItemProps {
   message: any;
+  isDirect?: boolean;
 }
 
-export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
+export const MessageItem: React.FC<MessageItemProps> = ({ message, isDirect }) => {
   const { user } = useAuth();
   const isMe = message.sender_id === user?.uid;
   const isSystem = message.message_type === 'system';
@@ -34,7 +35,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
       className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-4`}
     >
       <div className={`max-w-[85%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-        {!isMe && (
+        {!isMe && !isDirect && (
           <Link to={`/profile/${message.sender_id}`} className="flex items-center space-x-1 mb-1 ml-1 hover:opacity-80 transition-opacity">
             <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">
               {message.sender_name || 'Companion'}

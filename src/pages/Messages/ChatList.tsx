@@ -95,51 +95,64 @@ export const ChatList: React.FC = () => {
       const tripsQ = query(collection(db, 'trips'), where('__name__', 'in', allTripIds.slice(0, 10)));
       unsubscribeTripsData = onSnapshot(tripsQ, async (tripsSnapshot) => {
         const tripChatsPromises = tripsSnapshot.docs.map(async (docSnap) => {
-          const data = docSnap.data();
-          
-          // Fetch member count and some photos for stacked avatars
-          const membersQ = query(collection(db, 'trip_members'), where('trip_id', '==', docSnap.id), limit(3));
-          const membersSnapshot = await getDocs(membersQ);
-          const memberCountSnapshot = await getCountFromServer(query(collection(db, 'trip_members'), where('trip_id', '==', docSnap.id)));
-          const memberCount = memberCountSnapshot.data().count;
+          try {
+            const data = docSnap.data();
+            
+            // Fetch member count and some photos for stacked avatars
+            const membersQ = query(collection(db, 'trip_members'), where('trip_id', '==', docSnap.id), limit(3));
+            const membersSnapshot = await getDocs(membersQ);
+            const memberCountSnapshot = await getCountFromServer(query(collection(db, 'trip_members'), where('trip_id', '==', docSnap.id)));
+            const memberCount = memberCountSnapshot.data().count;
 
-          const memberPhotosPromises = membersSnapshot.docs.map(async (mDoc) => {
-            const uDoc = await getDoc(doc(db, 'users', mDoc.data().user_id));
-            return uDoc.data()?.photo_url;
-          });
-          const memberPhotos = (await Promise.all(memberPhotosPromises)).filter(Boolean);
+            const memberPhotosPromises = membersSnapshot.docs.map(async (mDoc) => {
+              try {
+                const uDoc = await getDoc(doc(db, 'users', mDoc.data().user_id));
+                return uDoc.data()?.photo_url;
+              } catch (e) {
+                return null;
+              }
+            });
+            const memberPhotos = (await Promise.all(memberPhotosPromises)).filter(Boolean);
 
-          // Fetch last message from messages collection
-          const lastMsgQ = query(
-            collection(db, 'messages'),
-            where('channel_id', '==', docSnap.id),
-            orderBy('created_at', 'desc'),
-            limit(1)
-          );
-          const lastMsgSnapshot = await getDocs(lastMsgQ);
-          const lastMsgData = lastMsgSnapshot.docs[0]?.data();
+            // Fetch last message from messages collection
+            const lastMsgQ = query(
+              collection(db, 'messages'),
+              where('channel_id', '==', docSnap.id),
+              orderBy('created_at', 'desc'),
+              limit(1)
+            );
+            const lastMsgSnapshot = await getDocs(lastMsgQ);
+            const lastMsgData = lastMsgSnapshot.docs[0]?.data();
 
-          return {
-            id: docSnap.id,
-            type: 'group' as const,
-            name: `${data.destination_city} Group`,
-            lastMessage: lastMsgData ? `${lastMsgData.sender_name}: ${lastMsgData.content}` : 'Tap to open group chat',
-            icon: data.destination_city?.charAt(0) || 'T',
-            memberCount,
-            memberPhotos,
-            ...data,
-            lastMessageTime: lastMsgData?.created_at || data.last_message_time || data.updated_at || data.created_at
-          };
+            return {
+              id: docSnap.id,
+              type: 'group' as const,
+              name: `${data.destination_city} Group`,
+              lastMessage: lastMsgData ? `${lastMsgData.sender_name}: ${lastMsgData.content}` : 'Tap to open group chat',
+              icon: data.destination_city?.charAt(0) || 'T',
+              memberCount,
+              memberPhotos,
+              ...data,
+              lastMessageTime: lastMsgData?.created_at || data.last_message_time || data.updated_at || data.created_at
+            };
+          } catch (error) {
+            console.error('Error fetching trip chat:', docSnap.id, error);
+            return null;
+          }
         });
 
-        const tripChats = await Promise.all(tripChatsPromises);
+        const tripChats = (await Promise.all(tripChatsPromises)).filter(Boolean);
         
         setChats(prev => {
           const others = prev.filter(c => c.type !== 'group');
           const combined = [...others, ...tripChats].sort((a, b) => {
-            const timeA = a.lastMessageTime?.seconds || 0;
-            const timeB = b.lastMessageTime?.seconds || 0;
-            return timeB - timeA;
+            const getTimestamp = (t: any) => {
+              if (!t) return 0;
+              if (t.seconds) return t.seconds * 1000;
+              if (t instanceof Date) return t.getTime();
+              return new Date(t).getTime() || 0;
+            };
+            return getTimestamp(b.lastMessageTime) - getTimestamp(a.lastMessageTime);
           });
           return combined;
         });
@@ -155,50 +168,63 @@ export const ChatList: React.FC = () => {
 
     const unsubscribeChannels = onSnapshot(channelsQ, async (snapshot) => {
       const directChatsPromises = snapshot.docs.map(async (docSnapshot) => {
-        const data = docSnapshot.data();
-        let name = 'Direct Message';
-        let icon = 'DM';
-        let photoUrl = null;
-        let otherUserId = null;
-        let otherUserInfo = null;
+        try {
+          const data = docSnapshot.data();
+          let name = 'Direct Message';
+          let icon = 'DM';
+          let photoUrl = null;
+          let otherUserId = null;
+          let otherUserInfo = null;
 
-        if (data.type === 'direct') {
-          otherUserId = data.participants.find((id: string) => id !== user.uid);
-          if (otherUserId) {
-            const userDoc = await getDoc(doc(db, 'users', otherUserId));
-            if (userDoc.exists()) {
-              const userData = userDoc.data();
-              name = userData.name || 'Traveler';
-              icon = name.charAt(0);
-              photoUrl = userData.photo_url;
-              otherUserInfo = {
-                is_online: userData.is_online,
-                last_seen: userData.last_seen
-              };
+          let isConnected = true;
+
+          if (data.type === 'direct') {
+            otherUserId = data.participants.find((id: string) => id !== user.uid);
+            if (otherUserId) {
+              const userDoc = await getDoc(doc(db, 'users', otherUserId));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                name = userData.name || 'Traveler';
+                icon = name.charAt(0);
+                photoUrl = userData.photo_url;
+                otherUserInfo = {
+                  is_online: userData.is_online,
+                  last_seen: userData.last_seen
+                };
+              }
+
+              // Check connection status
+              const connId = [user.uid, otherUserId].sort().join('_');
+              const connDoc = await getDoc(doc(db, 'connections', connId));
+              isConnected = connDoc.exists() && connDoc.data().status === 'accepted';
             }
           }
-        }
 
-        return {
-          id: docSnapshot.id,
-          type: data.type,
-          name,
-          lastMessage: data.last_message || 'No messages yet',
-          lastMessageTime: data.last_message_time || data.updated_at,
-          participants: data.participants,
-          icon,
-          photoUrl,
-          otherUserId,
-          otherUserInfo
-        };
+          return {
+            id: docSnapshot.id,
+            type: data.type,
+            name,
+            lastMessage: (data.type === 'direct' && !isConnected) ? 'Connect to view messages' : (data.last_message || 'No messages yet'),
+            lastMessageTime: data.last_message_time || data.updated_at,
+            participants: data.participants,
+            icon,
+            photoUrl,
+            otherUserId,
+            otherUserInfo,
+            isConnected
+          };
+        } catch (error) {
+          console.error('Error fetching direct chat:', docSnapshot.id, error);
+          return null;
+        }
       });
 
-      const directChats = await Promise.all(directChatsPromises);
+      const directChats = (await Promise.all(directChatsPromises)).filter(Boolean);
       
       // Update online users state
       const onlineMap = new Map();
       directChats.forEach(chat => {
-        if (chat.otherUserId && chat.otherUserInfo) {
+        if (chat && chat.otherUserId && chat.otherUserInfo) {
           onlineMap.set(chat.otherUserId, chat.otherUserInfo);
         }
       });
@@ -207,9 +233,13 @@ export const ChatList: React.FC = () => {
       setChats(prev => {
         const others = prev.filter(c => c.type === 'group');
         const combined = [...others, ...directChats].sort((a, b) => {
-          const timeA = a.lastMessageTime?.seconds || 0;
-          const timeB = b.lastMessageTime?.seconds || 0;
-          return timeB - timeA;
+          const getTimestamp = (t: any) => {
+            if (!t) return 0;
+            if (t.seconds) return t.seconds * 1000;
+            if (t instanceof Date) return t.getTime();
+            return new Date(t).getTime() || 0;
+          };
+          return getTimestamp(b.lastMessageTime) - getTimestamp(a.lastMessageTime);
         });
         return combined;
       });
@@ -563,11 +593,23 @@ const ChatItem: React.FC<ChatItemProps> = ({
               {isMuted && <BellOff className="w-3 h-3 text-gray-300" />}
             </div>
             <div className="flex flex-col">
-              <p className={`text-sm line-clamp-1 break-all ${isUnread ? 'text-purple-600 font-bold' : 'text-gray-400'}`}>
-                {highlightText(chat.lastMessage, searchQuery)}
-              </p>
+              {chat.type === 'direct' && !chat.isConnected ? (
+                <div className="flex items-center space-x-1.5 mt-0.5">
+                  <div className="px-1.5 py-0.5 bg-amber-50 rounded text-[8px] font-black text-amber-600 uppercase tracking-widest border border-amber-100 flex items-center">
+                    <Zap className="w-2 h-2 mr-1 fill-amber-600" />
+                    Pending
+                  </div>
+                  <p className="text-xs text-amber-500/70 font-medium truncate">
+                    Connect to start chatting
+                  </p>
+                </div>
+              ) : (
+                <p className={`text-sm line-clamp-1 break-all ${isUnread ? 'text-purple-600 font-bold' : 'text-gray-400'}`}>
+                  {highlightText(chat.lastMessage, searchQuery)}
+                </p>
+              )}
               {chat.type === 'direct' && !isOnline && otherUserStatus?.last_seen && (
-                <span className="text-[9px] text-gray-300 font-medium">
+                <span className="text-[9px] text-gray-300 font-medium mt-0.5">
                   Last seen: {formatLastSeen(otherUserStatus.last_seen)}
                 </span>
               )}

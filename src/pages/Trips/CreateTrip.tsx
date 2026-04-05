@@ -21,7 +21,7 @@ import { CustomSelect } from '../../components/UI/CustomSelect';
 import { CustomDatePicker } from '../../components/UI/CustomDatePicker';
 import { LocationAutocomplete } from '../../components/Trips/LocationAutocomplete';
 import { generateInviteCode } from '../../services/inviteService';
-import { GoogleGenAI } from "@google/genai";
+import { getGeminiInstance } from '../../services/gemini';
 
 // Initialize Gemini AI
 // (Moved inside functions to ensure fresh API key)
@@ -158,15 +158,9 @@ export const CreateTrip: React.FC = () => {
     setIsGenerating(true);
     console.log("Generating AI description for:", formData.destination_city);
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        console.error("GEMINI_API_KEY is missing in process.env");
-        throw new Error("Gemini API key is missing. Please check your environment variables.");
-      }
-      
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = getGeminiInstance();
       const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-flash-latest",
         contents: [{
           parts: [{
             text: `Generate a catchy, engaging travel trip description for a trip to ${formData.destination_city}, ${formData.destination_country}. 
@@ -181,9 +175,10 @@ export const CreateTrip: React.FC = () => {
         setFormData({ ...formData, description: text });
         toast.success("AI generated a description for you!");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Generation Error:", error);
-      toast.error("Failed to generate description. Please try again.");
+      const msg = error?.message || "Please try again.";
+      toast.error(`Failed to generate description: ${msg}`);
     } finally {
       setIsGenerating(false);
     }
@@ -208,15 +203,9 @@ export const CreateTrip: React.FC = () => {
     setIsGenerating(true);
     console.log("Generating AI itinerary for:", formData.destination_city, "Days:", diffDays);
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        console.error("GEMINI_API_KEY is missing in process.env");
-        throw new Error("Gemini API key is missing. Please check your environment variables.");
-      }
-
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = getGeminiInstance();
       const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-flash-latest",
         contents: [{
           parts: [{
             text: `Generate a day-wise itinerary for a ${diffDays}-day trip to ${formData.destination_city}, ${formData.destination_country}. 
@@ -246,9 +235,10 @@ export const CreateTrip: React.FC = () => {
         console.error("JSON Parse Error:", parseError, "Raw text:", text);
         toast.error("AI returned an invalid format. Please try again.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Generation Error:", error);
-      toast.error("Failed to generate itinerary. Please try again.");
+      const msg = error?.message || "Please try again.";
+      toast.error(`Failed to generate itinerary: ${msg}`);
     } finally {
       setIsGenerating(false);
     }
@@ -292,13 +282,7 @@ export const CreateTrip: React.FC = () => {
     setIsGeneratingImage(true);
     console.log("Generating AI image for:", formData.destination_city);
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        console.error("GEMINI_API_KEY is missing in process.env");
-        throw new Error("Gemini API key is missing. Please check your environment variables.");
-      }
-
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = getGeminiInstance();
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: {
@@ -322,9 +306,10 @@ export const CreateTrip: React.FC = () => {
         }
       }
       toast.error("Failed to generate image. Please try again.");
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Image Generation Error:", error);
-      toast.error("Failed to generate image. Please try again.");
+      const msg = error?.message || "Please try again.";
+      toast.error(`Failed to generate image: ${msg}`);
     } finally {
       setIsGeneratingImage(false);
     }
@@ -436,7 +421,7 @@ export const CreateTrip: React.FC = () => {
             key={currentStep}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white p-10 rounded-[2.5rem] shadow-2xl shadow-indigo-100/50 border border-gray-100 relative overflow-hidden"
+            className="bg-white p-10 rounded-[2.5rem] shadow-2xl shadow-indigo-100/50 border border-gray-100 relative overflow-visible"
           >
             {/* Background Accent */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full -mr-32 -mt-32 blur-3xl" />

@@ -92,6 +92,7 @@ export const joinTripViaInvite = async (
         status: 'approved',
         joined_at: serverTimestamp(),
         joined_via: 'invite_link',
+        invite_code: inviteCode,
         request_message: 'Joined via invite link'
       });
     }

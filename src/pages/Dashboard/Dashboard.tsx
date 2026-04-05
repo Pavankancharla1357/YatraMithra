@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../../firebase';
-import { collection, query, where, getDocs, orderBy, doc, updateDoc, increment, getDoc, limit } from 'firebase/firestore';
+import { 
+  collection, query, where, getDocs, orderBy, doc, updateDoc, 
+  increment, getDoc, limit, onSnapshot 
+} from 'firebase/firestore';
+import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '../../components/Auth/AuthContext';
 import { createNotification } from '../../services/notificationService';
 import { TripCard } from '../../components/Trips/TripCard';
@@ -147,12 +151,8 @@ export const Dashboard: React.FC = () => {
           console.error('Error fetching pending requests:', err);
         }
 
-        // 5. Fetch Recent Activities
-        const mockActivities = [
-          { id: '1', type: 'join', user: 'Rahul S.', action: 'joined your trip to Leh', time: '2h ago' },
-          { id: '2', type: 'like', user: 'Priya M.', action: 'liked your trip to Goa', time: '5h ago' },
-        ];
-        setActivities(mockActivities);
+        // 5. Fetch Recent Activities (Now handled by real-time listener)
+        // setActivities([]); 
 
       } catch (error: any) {
         console.error('CRITICAL: Error fetching dashboard data:', error);
@@ -165,6 +165,50 @@ export const Dashboard: React.FC = () => {
     fetchDashboardData();
     return () => unsubscribeRating();
   }, [user, profile?.saved_trips]);
+
+  // Real-time Activity Feed
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(
+      collection(db, 'notifications'),
+      where('user_id', '==', user.uid),
+      orderBy('created_at', 'desc'),
+      limit(10)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const newActivities = snapshot.docs.map(doc => {
+        const data = doc.data();
+        const message = data.message || '';
+        let userName = 'System';
+        let action = message;
+
+        // Try to extract name (assuming it's the first part of the message)
+        const words = message.split(' ');
+        if (words.length > 1 && data.type !== 'trip_updated') {
+          userName = words[0];
+          action = words.slice(1).join(' ');
+        } else if (data.type === 'trip_updated') {
+          userName = 'Trip Update';
+          action = message;
+        }
+
+        return {
+          id: doc.id,
+          type: data.type,
+          user: userName,
+          action: action,
+          time: data.created_at ? formatDistanceToNow(data.created_at.toDate(), { addSuffix: true }) : 'Just now'
+        };
+      });
+      setActivities(newActivities);
+    }, (error) => {
+      console.error('Error listening to notifications:', error);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   const filteredAndSortedTrips = useMemo(() => {
     let list = activeFilter === 'my' ? myTrips : 
@@ -557,19 +601,43 @@ export const Dashboard: React.FC = () => {
                 <Activity className="w-5 h-5 mr-2 text-indigo-600" /> Recent Activity
               </h3>
               <div className="space-y-6">
-                {activities.map((activity) => (
-                  <div key={activity.id} className="flex space-x-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${activity.type === 'join' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                      {activity.type === 'join' ? <UserCheck className="w-4 h-4" /> : <Heart className="w-4 h-4 fill-current" />}
-                    </div>
-                    <div>
-                      <p className="text-[11px] text-gray-600 leading-tight">
-                        <span className="font-bold text-gray-900">{activity.user}</span> {activity.action}
-                      </p>
-                      <span className="text-[9px] font-bold text-gray-400 uppercase mt-1 block">{activity.time}</span>
-                    </div>
+                {activities.length > 0 ? (
+                  activities.map((activity) => {
+                    const config = (() => {
+                      switch (activity.type) {
+                        case 'request_received':
+                        case 'request_accepted':
+                          return { icon: <UserCheck className="w-4 h-4" />, color: 'bg-emerald-50 text-emerald-600' };
+                        case 'new_message':
+                          return { icon: <MessageSquare className="w-4 h-4" />, color: 'bg-indigo-50 text-indigo-600' };
+                        case 'trip_updated':
+                          return { icon: <Zap className="w-4 h-4" />, color: 'bg-amber-50 text-amber-600' };
+                        case 'new_review':
+                          return { icon: <Star className="w-4 h-4 fill-current" />, color: 'bg-rose-50 text-rose-600' };
+                        default:
+                          return { icon: <Bell className="w-4 h-4" />, color: 'bg-gray-50 text-gray-600' };
+                      }
+                    })();
+
+                    return (
+                      <div key={activity.id} className="flex space-x-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${config.color}`}>
+                          {config.icon}
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-gray-600 leading-tight">
+                            <span className="font-bold text-gray-900">{activity.user}</span> {activity.action}
+                          </p>
+                          <span className="text-[9px] font-bold text-gray-400 uppercase mt-1 block">{activity.time}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-6">
+                    <p className="text-xs text-gray-400 font-medium">No recent activity</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
 

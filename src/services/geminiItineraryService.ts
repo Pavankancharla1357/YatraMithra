@@ -1,4 +1,5 @@
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { ThinkingLevel } from "@google/genai";
+import { getGeminiInstance } from "./gemini";
 
 export interface ItinerarySuggestion {
   title: string;
@@ -25,11 +26,7 @@ export interface FullItinerary {
 }
 
 const getAi = () => {
-  const apiKey = process.env.GEMINI_API_KEY_1 || process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("Gemini API Key is missing. Please ensure it is set in the environment.");
-  }
-  return new GoogleGenAI({ apiKey });
+  return getGeminiInstance();
 };
 
 export const generateFullItinerary = async (
@@ -83,7 +80,7 @@ export const generateFullItinerary = async (
     `;
 
     const result = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-flash-latest",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",
@@ -121,7 +118,7 @@ export const getAiItinerarySuggestions = async (
     `;
 
     const result = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-flash-latest",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",
