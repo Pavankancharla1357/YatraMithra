@@ -58,41 +58,35 @@ export const ChatInput: React.FC<ChatInputProps> = ({ channelId }) => {
       });
 
       // 2. Secondary Actions: Metadata updates and notifications
-      // We wrap these in a separate try-catch so they don't trigger message restoration if they fail
       try {
-        // Update channel/trip last message
+        const tripRef = doc(db, 'trips', channelId);
         const channelRef = doc(db, 'channels', channelId);
-        const channelSnap = await getDoc(channelRef);
-        if (channelSnap.exists()) {
-          await updateDoc(channelRef, {
+        
+        const [tripSnap, channelSnap] = await Promise.all([
+          getDoc(tripRef),
+          getDoc(channelRef)
+        ]);
+
+        if (tripSnap.exists()) {
+          const tripData = tripSnap.data();
+          // Update trip last message
+          await updateDoc(tripRef, {
             last_message: trimmedMessage,
             last_message_time: serverTimestamp()
           });
-        } else {
-          const tripRef = doc(db, 'trips', channelId);
-          const tripSnap = await getDoc(tripRef);
-          if (tripSnap.exists()) {
-            await updateDoc(tripRef, {
-              last_message: trimmedMessage,
-              last_message_time: serverTimestamp()
-            });
-          }
-        }
 
-        // Notify other members
-        const tripRef = doc(db, 'trips', channelId);
-        const tripSnap = await getDoc(tripRef);
-        if (tripSnap.exists()) {
-          const tripData = tripSnap.data();
+          // Notify members
           const membersQ = query(
             collection(db, 'trip_members'),
-            where('trip_id', '==', channelId),
-            where('status', '==', 'approved')
+            where('trip_id', '==', channelId)
           );
           const membersSnap = await getDocs(membersQ);
           
-          const notificationPromises = membersSnap.docs
-            .map(doc => doc.data().user_id)
+          const approvedMemberIds = membersSnap.docs
+            .filter(d => d.data().status === 'approved')
+            .map(d => d.data().user_id);
+          
+          const notificationPromises = approvedMemberIds
             .filter(uid => uid !== user.uid)
             .map(uid => createNotification(
               uid,
@@ -102,7 +96,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({ channelId }) => {
               `/messages/${channelId}`
             ));
           
-          if (tripData.organizer_id !== user.uid && !membersSnap.docs.some(d => d.data().user_id === tripData.organizer_id)) {
+          // Also notify organizer if they are not in the approved members list
+          if (tripData.organizer_id !== user.uid && !approvedMemberIds.includes(tripData.organizer_id)) {
             notificationPromises.push(createNotification(
               tripData.organizer_id,
               'new_message',
@@ -112,23 +107,36 @@ export const ChatInput: React.FC<ChatInputProps> = ({ channelId }) => {
             ));
           }
           await Promise.all(notificationPromises);
-        } else {
-          const channelRef = doc(db, 'channels', channelId);
-          const channelSnap = await getDoc(channelRef);
-          if (channelSnap.exists()) {
-            const channelData = channelSnap.data();
-            if (channelData.type === 'direct') {
-              const otherUserId = channelData.participants.find((uid: string) => uid !== user.uid);
-              if (otherUserId) {
-                await createNotification(
-                  otherUserId,
-                  'new_message',
-                  `New message from ${senderName}`,
-                  `${trimmedMessage.substring(0, 50)}${trimmedMessage.length > 50 ? '...' : ''}`,
-                  `/messages/${channelId}`
-                );
-              }
+        } else if (channelSnap.exists()) {
+          const channelData = channelSnap.data();
+          // Update channel last message
+          await updateDoc(channelRef, {
+            last_message: trimmedMessage,
+            last_message_time: serverTimestamp()
+          });
+
+          if (channelData.type === 'direct') {
+            const otherUserId = channelData.participants.find((uid: string) => uid !== user.uid);
+            if (otherUserId) {
+              await createNotification(
+                otherUserId,
+                'new_message',
+                `New message from ${senderName}`,
+                `${trimmedMessage.substring(0, 50)}${trimmedMessage.length > 50 ? '...' : ''}`,
+                `/messages/${channelId}`
+              );
             }
+          } else if (channelData.type === 'group' && channelData.participants) {
+            const notificationPromises = channelData.participants
+              .filter((uid: string) => uid !== user.uid)
+              .map((uid: string) => createNotification(
+                uid,
+                'new_message',
+                `New message in ${channelData.name || 'Group Chat'}`,
+                `${senderName}: ${trimmedMessage.substring(0, 50)}${trimmedMessage.length > 50 ? '...' : ''}`,
+                `/messages/${channelId}`
+              ));
+            await Promise.all(notificationPromises);
           }
         }
       } catch (secondaryError) {

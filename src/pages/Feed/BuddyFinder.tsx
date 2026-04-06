@@ -155,6 +155,7 @@ export const BuddyFinder: React.FC = () => {
         const newProfiles: Record<string, any> = {};
         
         await Promise.all(profilesToFetch.map(async (uid) => {
+          if (!uid) return;
           try {
             const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', uid)));
             if (!userDoc.empty) {

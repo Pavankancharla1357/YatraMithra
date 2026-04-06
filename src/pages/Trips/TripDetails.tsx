@@ -18,6 +18,7 @@ import {
 } from 'firebase/firestore';
 import { useAuth } from '../../components/Auth/AuthContext';
 import { generateInviteCode } from '../../services/inviteService';
+import { createNotification } from '../../services/notificationService';
 import { JoinRequestModal } from '../../components/Trips/JoinRequestModal';
 import { ShareModal } from '../../components/Trips/ShareModal';
 import { EditTripModal } from '../../components/Trips/EditTripModal';
@@ -363,6 +364,15 @@ const TripDetails: React.FC = () => {
           });
         }
 
+        // Notify the user
+        await createNotification(
+          memberUid,
+          'request_accepted',
+          'Trip Request Approved!',
+          `Your request to join the trip to ${trip.destination_city} has been approved!`,
+          `/trips/${id}`
+        );
+
         // Update local state
         setMembers(prev => prev.map(m => m.uid === memberUid ? { ...m, status: 'approved' } : m));
       }
@@ -382,6 +392,16 @@ const TripDetails: React.FC = () => {
       const snapshot = await getDocs(q);
       if (!snapshot.empty) {
         await deleteDoc(snapshot.docs[0].ref);
+        
+        // Notify the user
+        await createNotification(
+          memberUid,
+          'trip_updated',
+          'Trip Request Update',
+          `Your request to join the trip to ${trip.destination_city} was not accepted at this time.`,
+          `/discover`
+        );
+
         // Update local state
         setMembers(prev => prev.filter(m => m.uid !== memberUid));
       }

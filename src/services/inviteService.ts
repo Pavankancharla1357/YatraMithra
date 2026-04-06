@@ -103,6 +103,21 @@ export const joinTripViaInvite = async (
       invite_count: increment(1)
     });
 
+    // Notify trip organizer
+    if (tripData.organizer_id) {
+      const joinerName = userProfile?.name || 'A traveler';
+      await addDoc(collection(db, 'notifications'), {
+        user_id: tripData.organizer_id,
+        type: 'trip_updated',
+        title: 'New Trip Member',
+        message: `${joinerName} joined your trip to ${tripData.destination_city} via invite link!`,
+        body: `${joinerName} joined your trip to ${tripData.destination_city} via invite link!`,
+        link: `/trips/${tripId}`,
+        is_read: false,
+        created_at: serverTimestamp()
+      });
+    }
+
     return { status: 'success', tripId };
   } catch (error: any) {
     console.error('Error joining trip via invite:', error);

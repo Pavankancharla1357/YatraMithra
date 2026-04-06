@@ -12,7 +12,7 @@ export const ChatList: React.FC = () => {
   const [chats, setChats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [unreadChatIds, setUnreadChatIds] = useState<Map<string, number>>(new Map());
+  const [unreadChatIds, setUnreadChatIds] = useState<Record<string, number>>({});
   const [pinnedChatIds, setPinnedChatIds] = useState<Set<string>>(new Set());
   const [mutedChatIds, setMutedChatIds] = useState<Set<string>>(new Set());
   const [archivedChatIds, setArchivedChatIds] = useState<Set<string>>(new Set());
@@ -23,6 +23,7 @@ export const ChatList: React.FC = () => {
     if (!user) return;
 
     // 1. Listen for unread message notifications
+    // We simplify the query to avoid potential index issues and filter in-memory
     const unreadQ = query(
       collection(db, 'notifications'),
       where('user_id', '==', user.uid),
@@ -31,17 +32,21 @@ export const ChatList: React.FC = () => {
     );
 
     const unsubscribeUnread = onSnapshot(unreadQ, (snapshot) => {
-      const counts = new Map<string, number>();
+      const counts: Record<string, number> = {};
       snapshot.docs.forEach(doc => {
-        const link = doc.data().link;
+        const data = doc.data();
+        // Count any unread notification that links to a chat
+        const link = data.link;
         if (link && link.startsWith('/messages/')) {
           const chatId = link.split('/').pop();
           if (chatId) {
-            counts.set(chatId, (counts.get(chatId) || 0) + 1);
+            counts[chatId] = (counts[chatId] || 0) + 1;
           }
         }
       });
       setUnreadChatIds(counts);
+    }, (error) => {
+      console.error('Error listening for unread notifications:', error);
     });
 
     // 2. Listen for user chat settings (pinned, muted, archived, deleted)
@@ -83,7 +88,7 @@ export const ChatList: React.FC = () => {
       const organizerSnapshot = await getDocs(organizerQ);
       const organizerTripIds = organizerSnapshot.docs.map(doc => doc.id);
       
-      const allTripIds = Array.from(new Set([...tripIds, ...organizerTripIds]));
+      const allTripIds = Array.from(new Set([...tripIds, ...organizerTripIds])).filter(id => id && typeof id === 'string');
 
       if (unsubscribeTripsData) unsubscribeTripsData();
 
@@ -156,6 +161,9 @@ export const ChatList: React.FC = () => {
           });
           return combined;
         });
+        setLoading(false);
+      }, (error) => {
+        console.error('Error in trips snapshot:', error);
         setLoading(false);
       });
     });
@@ -385,8 +393,8 @@ export const ChatList: React.FC = () => {
                     <ChatItem 
                       key={chat.id} 
                       chat={chat} 
-                      isUnread={unreadChatIds.has(chat.id)}
-                      unreadCount={unreadChatIds.get(chat.id)}
+                      isUnread={!!unreadChatIds[chat.id]}
+                      unreadCount={unreadChatIds[chat.id]}
                       isPinned={true}
                       isMuted={mutedChatIds.has(chat.id)}
                       onPin={() => togglePin(chat.id)}
@@ -413,8 +421,8 @@ export const ChatList: React.FC = () => {
                   <ChatItem 
                     key={chat.id} 
                     chat={chat} 
-                    isUnread={unreadChatIds.has(chat.id)}
-                    unreadCount={unreadChatIds.get(chat.id)}
+                    isUnread={!!unreadChatIds[chat.id]}
+                    unreadCount={unreadChatIds[chat.id]}
                     isPinned={false}
                     isMuted={mutedChatIds.has(chat.id)}
                     onPin={() => togglePin(chat.id)}

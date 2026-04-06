@@ -22,7 +22,7 @@ const AuthContext = createContext<AuthContextType>({
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<any | null | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
   const logout = async () => {
@@ -49,6 +49,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!currentUser) {
         setProfile(null);
         setLoading(false);
+      } else {
+        // Keep loading true and profile undefined until profile is fetched
+        setProfile(undefined);
+        setLoading(true);
       }
     });
 
@@ -73,6 +77,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     updatePresence(true);
+
+    const fetchProfile = async () => {
+      try {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setProfile(docSnap.data());
+        } else {
+          setProfile(null);
+        }
+        setLoading(false);
+      } catch (error: any) {
+        console.error('Initial profile fetch error:', error);
+        if (error.code !== 'permission-denied') {
+          handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+        }
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
 
     const unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {

@@ -117,35 +117,38 @@ export const Dashboard: React.FC = () => {
         console.log('Fetching pending requests...');
         try {
           if (tripsData.length > 0) {
-            const tripIds = tripsData.map(t => t.id);
-            const requestsQ = query(
-              collection(db, 'trip_members'), 
-              where('trip_id', 'in', tripIds.slice(0, 10)),
-              where('status', '==', 'pending')
-            );
-            const requestsSnapshot = await getDocs(requestsQ);
-            console.log('Pending requests snapshot count:', requestsSnapshot.docs.length);
-            
-            const requestsData = await Promise.all(
-              requestsSnapshot.docs.map(async (docSnap) => {
-                try {
-                  const data = docSnap.data();
-                  const userDoc = await getDoc(doc(db, 'users', data.user_id));
-                  const userData = userDoc.exists() ? userDoc.data() : null;
-                  return { 
-                    id: docSnap.id, 
-                    ...data,
-                    user_name: userData?.name || data.user_name || 'Traveler',
-                    user_photo: userData?.photo_url || null
-                  };
-                } catch (e) {
-                  console.warn('Error fetching user data for request:', e);
-                  return { id: docSnap.id, ...docSnap.data(), user_name: 'Traveler' };
-                }
-              })
-            );
-            setRequests(requestsData);
-            console.log('Requests data processed successfully:', requestsData.length);
+            const tripIds = tripsData.map(t => t.id).filter(id => id && typeof id === 'string');
+            if (tripIds.length > 0) {
+              const requestsQ = query(
+                collection(db, 'trip_members'), 
+                where('trip_id', 'in', tripIds.slice(0, 10)),
+                where('status', '==', 'pending')
+              );
+              const requestsSnapshot = await getDocs(requestsQ);
+              console.log('Pending requests snapshot count:', requestsSnapshot.docs.length);
+              
+              const requestsData = await Promise.all(
+                requestsSnapshot.docs.map(async (docSnap) => {
+                  try {
+                    const data = docSnap.data();
+                    if (!data.user_id) return null;
+                    const userDoc = await getDoc(doc(db, 'users', data.user_id));
+                    const userData = userDoc.exists() ? userDoc.data() : null;
+                    return { 
+                      id: docSnap.id, 
+                      ...data,
+                      user_name: userData?.name || data.user_name || 'Traveler',
+                      user_photo: userData?.photo_url || null
+                    };
+                  } catch (e) {
+                    console.warn('Error fetching user data for request:', e);
+                    return { id: docSnap.id, ...docSnap.data(), user_name: 'Traveler' };
+                  }
+                })
+              );
+              setRequests(requestsData.filter(Boolean));
+              console.log('Requests data processed successfully:', requestsData.length);
+            }
           }
         } catch (err) {
           console.error('Error fetching pending requests:', err);
@@ -178,30 +181,57 @@ export const Dashboard: React.FC = () => {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const newActivities = snapshot.docs.map(doc => {
-        const data = doc.data();
-        const message = data.message || '';
-        let userName = 'System';
-        let action = message;
+      const newActivities = snapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          const message = data.body || data.message || '';
+          
+          // Filter out new_message type from activities as per user request
+          if (data.type === 'new_message') return null;
 
-        // Try to extract name (assuming it's the first part of the message)
-        const words = message.split(' ');
-        if (words.length > 1 && data.type !== 'trip_updated') {
-          userName = words[0];
-          action = words.slice(1).join(' ');
-        } else if (data.type === 'trip_updated') {
-          userName = 'Trip Update';
-          action = message;
-        }
+          // Improved name extraction logic
+          let userName = 'System';
+          let action = message;
 
-        return {
-          id: doc.id,
-          type: data.type,
-          user: userName,
-          action: action,
-          time: data.created_at ? formatDistanceToNow(data.created_at.toDate(), { addSuffix: true }) : 'Just now'
-        };
-      });
+          // Try to extract name from message (usually at the start)
+          if (message.includes(' invited you')) {
+            userName = message.split(' invited you')[0];
+            action = `invited you to a trip`;
+          } else if (message.includes(' joined your trip')) {
+            userName = message.split(' joined your trip')[0];
+            action = `joined your trip`;
+          } else if (message.includes(' requested to join')) {
+            userName = message.split(' requested to join')[0];
+            action = `requested to join your trip`;
+          } else if (message.includes(' sent you a connection request')) {
+            userName = message.split(' sent you a connection request')[0];
+            action = `sent a connection request`;
+          } else if (message.includes(' accepted your connection request')) {
+            userName = message.split(' accepted your connection request')[0];
+            action = `is now connected with you`;
+          } else if (message.includes(' left you a ')) {
+            userName = message.split(' left you a ')[0];
+            action = `left you a review`;
+          } else if (data.type === 'trip_updated') {
+            userName = 'Trip Update';
+            action = message;
+          } else if (data.type === 'request_accepted') {
+            userName = 'Trip Request';
+            action = 'Your request was approved!';
+          }
+
+          const createdAt = data.created_at?.toDate ? data.created_at.toDate() : (data.created_at ? new Date(data.created_at) : new Date());
+
+          return {
+            id: doc.id,
+            type: data.type,
+            user: userName,
+            action: action,
+            time: formatDistanceToNow(createdAt, { addSuffix: true })
+          };
+        })
+        .filter((activity): activity is any => activity !== null);
+      
       setActivities(newActivities);
     }, (error) => {
       console.error('Error listening to notifications:', error);

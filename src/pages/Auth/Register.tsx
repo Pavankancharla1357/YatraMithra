@@ -38,6 +38,7 @@ export const Register: React.FC = () => {
           reputation_score: 0,
           is_email_verified: false,
           is_id_verified: false,
+          setup_completed: false,
         }, { merge: true });
       } catch (err) {
         handleFirestoreError(err, OperationType.WRITE, path);
@@ -68,6 +69,7 @@ export const Register: React.FC = () => {
           reputation_score: 0,
           is_email_verified: true,
           is_id_verified: false,
+          setup_completed: false,
         }, { merge: true });
       } catch (err) {
         handleFirestoreError(err, OperationType.WRITE, path);

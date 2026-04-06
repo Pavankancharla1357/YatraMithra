@@ -20,6 +20,7 @@ export const ProfilePage: React.FC = () => {
   const { user, profile: currentUserProfile, refreshProfile, logout } = useAuth();
   
   const [profile, setProfile] = useState<any>(null);
+  const [connectionsCount, setConnectionsCount] = useState(0);
   const [trips, setTrips] = useState<any[]>([]);
   const [buddyPosts, setBuddyPosts] = useState<any[]>([]);
   const [rating, setRating] = useState<{ averageRating: number; totalReviews: number }>({ averageRating: 0, totalReviews: 0 });
@@ -134,10 +135,37 @@ export const ProfilePage: React.FC = () => {
 
     fetchUserData();
     const unsubscribeConn = subscribeToConnection();
+
+    // Listen for accepted connections count
+    let count1 = 0;
+    let count2 = 0;
+    const q1 = query(
+      collection(db, 'connections'),
+      where('sender_id', '==', targetUid),
+      where('status', '==', 'accepted')
+    );
+    const q2 = query(
+      collection(db, 'connections'),
+      where('receiver_id', '==', targetUid),
+      where('status', '==', 'accepted')
+    );
+
+    const unsubCount1 = onSnapshot(q1, (snap) => {
+      count1 = snap.size;
+      setConnectionsCount(count1 + count2);
+    });
+
+    const unsubCount2 = onSnapshot(q2, (snap) => {
+      count2 = snap.size;
+      setConnectionsCount(count1 + count2);
+    });
+
     return () => {
       unsubscribeRating();
       unsubscribeProfile();
       unsubscribeConn();
+      unsubCount1();
+      unsubCount2();
     };
   }, [targetUid, user]);
 
@@ -498,6 +526,13 @@ export const ProfilePage: React.FC = () => {
                       <MapPin className="w-3.5 h-3.5 text-indigo-400" />
                       <span>{profile.location_city || 'Earth'}, {profile.location_country || 'Traveler'}</span>
                     </div>
+                    <button 
+                      onClick={() => navigate(`/profile/${targetUid}/connections`)}
+                      className="flex items-center gap-1.5 hover:text-white transition-colors group/conn"
+                    >
+                      <Users className="w-3.5 h-3.5 text-indigo-400 group-hover/conn:scale-110 transition-transform" />
+                      <span className="border-b border-transparent group-hover:border-white/50">{connectionsCount} Connections</span>
+                    </button>
                     <div className="flex items-center gap-1.5">
                       <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
                       <span>Online</span>

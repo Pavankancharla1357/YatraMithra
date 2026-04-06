@@ -18,6 +18,7 @@ export const ProfileSetup: React.FC = () => {
   const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const [initializing, setInitializing] = useState(true);
   const [formData, setFormData] = useState({
     name: profile?.name || user?.displayName || '',
     age: profile?.age?.toString() || '',
@@ -42,6 +43,7 @@ export const ProfileSetup: React.FC = () => {
 
   useEffect(() => {
     if (profile) {
+      console.log('Profile loaded in Setup:', profile);
       // If phone starts with +91, strip it for the input field
       const displayPhone = profile.phone_number?.startsWith('+91') 
         ? profile.phone_number.replace('+91', '') 
@@ -50,7 +52,7 @@ export const ProfileSetup: React.FC = () => {
       setFormData(prev => ({
         ...prev,
         name: profile.name || prev.name,
-        age: profile.age?.toString() || prev.age,
+        age: profile.age ? profile.age.toString() : prev.age,
         gender: profile.gender || prev.gender,
         location_city: profile.location_city || prev.location_city,
         location_country: profile.location_country || prev.location_country,
@@ -65,15 +67,28 @@ export const ProfileSetup: React.FC = () => {
           website: profile.social_links?.website || prev.social_links.website,
         },
       }));
-    }
-  }, [profile]);
 
-  useEffect(() => {
-    if (profile?.age && profile?.interests?.length && profile?.is_phone_verified) {
-      // If profile is fully set up and verified, skip
-      navigate('/discover');
+      // Initialize step based on what's already filled
+      // Step 1: Basic Info (age)
+      // Step 2: Travel Style
+      // Step 3: Interests
+      if (profile.setup_completed) {
+        if (window.location.pathname === '/profile/setup') {
+          navigate('/discover');
+        }
+      } else if (profile.age && profile.interests?.length > 0) {
+        setStep(3);
+      } else if (profile.age && profile.age > 0) {
+        setStep(2);
+      }
+      setInitializing(false);
+    } else if (profile === null) {
+      setInitializing(false);
     }
   }, [profile, navigate]);
+
+  // Remove the auto-redirect to /discover to prevent unwanted navigation on refresh
+  // The user will be redirected only when they explicitly complete the setup
 
   useEffect(() => {
     // Initialize Recaptcha for phone verification
@@ -169,8 +184,65 @@ export const ProfileSetup: React.FC = () => {
     }
   };
 
+  const handleNextStep = async (nextStep: number) => {
+    if (!user) return;
+
+    // Validation for Step 1
+    if (step === 1) {
+      if (!formData.name || !formData.age || !formData.location_city || !formData.location_country || !formData.phone_number) {
+        alert("Please fill in all required fields (Name, Age, City, Country, Phone).");
+        return;
+      }
+      if (parseInt(formData.age) < 18) {
+        alert("You must be at least 18 years old to use YatraMitra.");
+        return;
+      }
+    }
+
+    // Validation for Step 2
+    if (step === 2) {
+      if (!formData.travel_style) {
+        alert("Please select a travel style.");
+        return;
+      }
+    }
+
+    const path = `users/${user.uid}`;
+    try {
+      const dataToSave = { ...formData };
+      // Ensure phone number is stored in E.164 format if it's a 10-digit Indian number
+      if (dataToSave.phone_number && dataToSave.phone_number.length === 10 && !dataToSave.phone_number.startsWith('+')) {
+        dataToSave.phone_number = `+91${dataToSave.phone_number}`;
+      }
+
+      await setDoc(doc(db, 'users', user.uid), {
+        ...dataToSave,
+        uid: user.uid,
+        email: user.email,
+        age: parseInt(formData.age) || 0,
+        updated_at: new Date().toISOString(),
+      }, { merge: true });
+      
+      await refreshProfile();
+      setStep(nextStep);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  };
+
   const handleUpdate = async () => {
     if (!user) return;
+
+    // Validation for Step 3
+    if (formData.interests.length === 0) {
+      alert("Please select at least one interest.");
+      return;
+    }
+    if (!formData.bio || formData.bio.length < 10) {
+      alert("Please provide a short bio (at least 10 characters).");
+      return;
+    }
+
     const path = `users/${user.uid}`;
     try {
       const dataToSave = { ...formData };
@@ -189,6 +261,7 @@ export const ProfileSetup: React.FC = () => {
         is_email_verified: profile?.is_email_verified || false,
         is_id_verified: profile?.is_id_verified || false,
         created_at: profile?.created_at || new Date().toISOString(),
+        setup_completed: true, // Mark setup as completed
       }, { merge: true });
       await refreshProfile();
       navigate('/discover');
@@ -207,6 +280,14 @@ export const ProfileSetup: React.FC = () => {
   };
 
   const interestsList = ['Nature', 'Food', 'History', 'Adventure', 'Nightlife', 'Culture', 'Photography', 'Hiking', 'Beach', 'Shopping'];
+
+  if (initializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -328,7 +409,7 @@ export const ProfileSetup: React.FC = () => {
               </div>
 
               <button
-                onClick={() => setStep(2)}
+                onClick={() => handleNextStep(2)}
                 className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all"
               >
                 Continue
@@ -361,7 +442,7 @@ export const ProfileSetup: React.FC = () => {
                   Back
                 </button>
                 <button
-                  onClick={() => setStep(3)}
+                  onClick={() => handleNextStep(3)}
                   className="w-2/3 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all"
                 >
                   Continue

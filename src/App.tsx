@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './components/Auth/AuthContext';
+import { useEffect } from 'react';
 import { Navbar } from './components/Layout/Navbar';
 import { Home } from './pages/Home';
 import { Login } from './pages/Auth/Login';
@@ -13,6 +14,7 @@ import { ForgotPassword } from './pages/Auth/ForgotPassword';
 import { ResetPassword } from './pages/Auth/ResetPassword';
 import { ProfileSetup } from './pages/Profile/ProfileSetup';
 import { ProfilePage } from './pages/Profile/ProfilePage';
+import { ConnectionsList } from './pages/Profile/ConnectionsList';
 import { Dashboard } from './pages/Dashboard/Dashboard';
 import { DiscoverTrips } from './pages/Trips/DiscoverTrips';
 import { CreateTrip } from './pages/Trips/CreateTrip';
@@ -28,25 +30,81 @@ import { ChatRoom } from './pages/Messages/ChatRoom';
 import { BuddyFinder } from './pages/Feed/BuddyFinder';
 import { Notifications } from './pages/Notifications/Notifications';
 import { Settings } from './pages/Settings';
+import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { db } from './firebase';
+import { toast, Toaster } from 'sonner';
+
+const NotificationListener = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user) return;
+
+    // Listen for new unread notifications to show toasts
+    const q = query(
+      collection(db, 'notifications'),
+      where('user_id', '==', user.uid),
+      where('is_read', '==', false),
+      orderBy('created_at', 'desc'),
+      limit(1)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const data = change.doc.data();
+          // Only show toast if it's a very recent notification (within last 10 seconds)
+          const createdAt = data.created_at?.toDate ? data.created_at.toDate() : (data.created_at ? new Date(data.created_at) : new Date());
+          if (Date.now() - createdAt.getTime() < 10000) {
+            toast(data.title, {
+              description: data.body || data.message,
+              action: data.link ? {
+                label: 'View',
+                onClick: () => navigate(data.link)
+              } : undefined
+            });
+          }
+        }
+      });
+    }, (error) => {
+      console.error('Notification listener error:', error);
+    });
+
+    return () => unsubscribe();
+  }, [user, navigate]);
+
+  return null;
+};
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  if (!user) return <Navigate to="/login" />;
+  // Show loading spinner if auth is loading OR if user is logged in but profile hasn't been fetched yet
+  if (loading || (user && profile === undefined)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
   
-  // If profile is incomplete (no interests) and we're not already on the setup page
-  if (user && !profile?.interests?.length && location.pathname !== '/profile/setup') {
-    return <Navigate to="/profile/setup" />;
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
+  
+  // Only redirect to profile setup if profile is loaded and confirmed to be MISSING (null)
+  // This means the user document doesn't exist in Firestore yet.
+  // If the document exists, we let them stay on their current page to avoid flicker on reload.
+  const isBrandNewUser = profile === null;
+  
+  if (isBrandNewUser && location.pathname !== '/profile/setup') {
+    return <Navigate to="/profile/setup" replace />;
   }
 
   return <>{children}</>;
 };
 
-import { Toaster } from 'sonner';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { useEffect } from 'react';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -63,6 +121,7 @@ export default function App() {
     <ErrorBoundary>
       <AuthProvider>
         <Router>
+          <NotificationListener />
           <ScrollToTop />
           <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
             <Toaster position="top-center" richColors />
@@ -148,6 +207,7 @@ export default function App() {
                 } 
               />
               <Route path="/profile/:uid" element={<ProfilePage />} />
+              <Route path="/profile/:uid/connections" element={<ConnectionsList />} />
               <Route 
                 path="/dashboard" 
                 element={

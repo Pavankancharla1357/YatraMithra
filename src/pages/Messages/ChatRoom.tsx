@@ -43,6 +43,36 @@ export const ChatRoom: React.FC = () => {
     };
 
     markNotificationsAsRead();
+
+    // Listen for new notifications for this channel while the user is in the room
+    const q = query(
+      collection(db, 'notifications'),
+      where('user_id', '==', user.uid),
+      where('type', '==', 'new_message'),
+      where('is_read', '==', false),
+      where('link', '==', `/messages/${channelId}`)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty && document.visibilityState === 'visible') {
+        snapshot.docs.forEach(async (notifDoc) => {
+          await updateDoc(notifDoc.ref, { is_read: true });
+        });
+      }
+    });
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        markNotificationsAsRead();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [channelId, user]);
 
   const icebreakers = [
