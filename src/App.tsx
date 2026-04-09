@@ -23,6 +23,8 @@ import { JoinTrip } from './pages/Trips/JoinTrip';
 import { InvitePage } from './pages/Trips/InvitePage';
 import { TripExpenses } from './pages/Trips/TripExpenses';
 import { DocumentVault } from './pages/Trips/DocumentVault';
+import { GemmaPlayground } from './pages/AI/GemmaPlayground';
+import { UnifiedTravelPlanner } from './pages/AI/UnifiedTravelPlanner';
 import TravelMatcher from './pages/Trips/TravelMatcher';
 import ExpertTravelPlanner from './pages/Trips/ExpertTravelPlanner';
 import { ChatList } from './pages/Messages/ChatList';
@@ -240,6 +242,22 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <ExpertTravelPlanner />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/gemma-playground" 
+                element={
+                  <ProtectedRoute>
+                    <GemmaPlayground />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/ai-planner" 
+                element={
+                  <ProtectedRoute>
+                    <UnifiedTravelPlanner />
                   </ProtectedRoute>
                 } 
               />

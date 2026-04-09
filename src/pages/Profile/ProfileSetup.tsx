@@ -18,6 +18,7 @@ export const ProfileSetup: React.FC = () => {
   const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const [hasSetInitialStep, setHasSetInitialStep] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const [formData, setFormData] = useState({
     name: profile?.name || user?.displayName || '',
@@ -72,14 +73,17 @@ export const ProfileSetup: React.FC = () => {
       // Step 1: Basic Info (age)
       // Step 2: Travel Style
       // Step 3: Interests
-      if (profile.setup_completed) {
-        if (window.location.pathname === '/profile/setup') {
-          navigate('/discover');
+      if (!hasSetInitialStep) {
+        if (profile.setup_completed) {
+          if (window.location.pathname === '/profile/setup') {
+            navigate('/discover');
+          }
+        } else if (profile.age && profile.interests?.length > 0) {
+          setStep(3);
+        } else if (profile.age && profile.age > 0) {
+          setStep(2);
         }
-      } else if (profile.age && profile.interests?.length > 0) {
-        setStep(3);
-      } else if (profile.age && profile.age > 0) {
-        setStep(2);
+        setHasSetInitialStep(true);
       }
       setInitializing(false);
     } else if (profile === null) {

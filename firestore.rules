@@ -61,7 +61,9 @@ service cloud.firestore {
     }
 
     function isTripMember(tripId) {
-      return isAuthenticated() && exists(/databases/$(database)/documents/trip_members/$(request.auth.uid + '_' + tripId));
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/trip_members/$(request.auth.uid + '_' + tripId)) &&
+             get(/databases/$(database)/documents/trip_members/$(request.auth.uid + '_' + tripId)).data.status == 'approved';
     }
 
     function isValidEmail(email) {
@@ -260,7 +262,7 @@ service cloud.firestore {
       // This is simple enough for Firestore queries to be covered.
       allow read: if isAuthenticated() && (
         request.auth.uid in resource.data.participants || 
-        resource.data.type == 'trip' ||
+        (resource.data.type == 'trip' && isTripMember(channelId)) ||
         isAdmin()
       );
       
@@ -293,7 +295,7 @@ service cloud.firestore {
            request.auth.uid in get(/databases/$(database)/documents/channels/$(resource.data.channel_id)).data.participants) ||
           (exists(/databases/$(database)/documents/trips/$(resource.data.channel_id)) && 
            (request.auth.uid == get(/databases/$(database)/documents/trips/$(resource.data.channel_id)).data.organizer_id ||
-            exists(/databases/$(database)/documents/trip_members/$(request.auth.uid + '_' + resource.data.channel_id))))
+            isTripMember(resource.data.channel_id)))
         ))
       );
       allow create: if isAuthenticated() && (
@@ -307,7 +309,7 @@ service cloud.firestore {
            )) ||
           (exists(/databases/$(database)/documents/trips/$(request.resource.data.channel_id)) && 
            (request.auth.uid == get(/databases/$(database)/documents/trips/$(request.resource.data.channel_id)).data.organizer_id ||
-            exists(/databases/$(database)/documents/trip_members/$(request.auth.uid + '_' + request.resource.data.channel_id))))
+            isTripMember(request.resource.data.channel_id)))
         )
       );
       allow delete: if isAuthenticated() && (
@@ -340,6 +342,7 @@ service cloud.firestore {
          request.auth.uid == get(/databases/$(database)/documents/trips/$(resource.data.trip_id)).data.organizer_id)
       );
     }
+
     match /notifications/{notificationId} {
       allow read: if isOwner(resource.data.user_id);
       allow create: if isAuthenticated();

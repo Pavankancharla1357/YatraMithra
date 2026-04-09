@@ -4,7 +4,7 @@ import { useAuth } from '../Auth/AuthContext';
 import { auth, db } from '../../firebase';
 import { signOut } from 'firebase/auth';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { Compass, MessageSquare, User, LogOut, Menu, X, AlertCircle, Users, Sparkles, Bell, LayoutDashboard } from 'lucide-react';
+import { Compass, MessageSquare, User, LogOut, Menu, X, AlertCircle, Users, Sparkles, Bell, LayoutDashboard, Brain } from 'lucide-react';
 import { NotificationBell } from '../Notifications/NotificationBell';
 import { motion, AnimatePresence } from 'motion/react';
 import { Capacitor } from '@capacitor/core';
@@ -74,9 +74,9 @@ export const Navbar: React.FC = () => {
                   )}
                 </Link>
                 <NotificationBell />
-                <Link to="/expert-planner" className="text-gray-400 hover:text-indigo-600 font-medium transition-colors flex items-center gap-1 text-sm">
+                <Link to="/ai-planner" className="text-gray-400 hover:text-indigo-600 font-medium transition-colors flex items-center gap-1 text-sm">
                   <Sparkles className="w-3 h-3" />
-                  AI Helper
+                  AI Planner
                 </Link>
                 <Link to="/profile" className="flex items-center space-x-2 bg-gray-50 px-3 py-1.5 rounded-full hover:bg-gray-100 transition-colors">
                   <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
@@ -144,9 +144,9 @@ export const Navbar: React.FC = () => {
                 )}
               </Link>
               <Link to="/profile" className="block text-gray-600 font-medium py-2">Profile</Link>
-              <Link to="/expert-planner" className="block text-indigo-400 font-medium py-2 flex items-center gap-2 text-sm">
+              <Link to="/ai-planner" className="block text-indigo-400 font-medium py-2 flex items-center gap-2 text-sm">
                 <Sparkles className="w-4 h-4" />
-                AI Helper
+                AI Planner
               </Link>
               <button 
                 onClick={() => setShowLogoutConfirm(true)}
@@ -157,9 +157,9 @@ export const Navbar: React.FC = () => {
             </>
           ) : (
             <>
-              <Link to="/expert-planner" className="block text-indigo-400 font-medium py-2 flex items-center gap-2 text-sm">
+              <Link to="/ai-planner" className="block text-indigo-400 font-medium py-2 flex items-center gap-2 text-sm">
                 <Sparkles className="w-4 h-4" />
-                AI Helper
+                AI Planner
               </Link>
               <Link to="/login" className="block text-gray-600 font-medium py-2">Login</Link>
               <Link to="/register" className="block bg-indigo-600 text-white px-5 py-2 rounded-lg font-medium text-center">

@@ -940,12 +940,13 @@ const TripDetails: React.FC = () => {
             <span className="text-lg font-black text-gray-900">₹{trip.budget_max.toLocaleString()}</span>
           </div>
           <div className="flex gap-2 flex-1 justify-end">
-            {!(isOrganizer || memberStatus === 'approved') && memberStatus !== 'pending' ? (
+            {!(isOrganizer || memberStatus === 'approved') ? (
               <button
+                disabled={memberStatus === 'pending'}
                 onClick={() => setShowJoinModal(true)}
-                className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-200"
+                className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-200 disabled:opacity-50 disabled:bg-gray-400 disabled:shadow-none"
               >
-                Join Now
+                {memberStatus === 'pending' ? 'Request Pending' : 'Join Now'}
               </button>
             ) : (
               <button
