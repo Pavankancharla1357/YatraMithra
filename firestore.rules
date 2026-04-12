@@ -25,6 +25,8 @@ service cloud.firestore {
     // Document ID: tripId
     // Fields:
     //   - organizer_id: string (required) - UID of the trip organizer
+    //   - starting_city: string (optional) - City where the trip starts
+    //   - starting_country: string (optional) - Country where the trip starts
     //   - destination_city: string (required) - Destination city
     //   - destination_country: string (required) - Destination country
     //   - start_date: string (required) - ISO date

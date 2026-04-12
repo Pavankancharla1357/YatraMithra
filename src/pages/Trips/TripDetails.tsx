@@ -793,7 +793,7 @@ const TripDetails: React.FC = () => {
           />
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/discover')}
             className="absolute top-6 left-6 p-3 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/30 transition-all"
           >
             <ChevronLeft className="w-6 h-6" />
@@ -876,7 +876,7 @@ const TripDetails: React.FC = () => {
         
         <div className="absolute top-0 left-0 right-0 p-6 flex items-center justify-between z-20">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/discover')}
             className="p-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl text-white hover:bg-white/20 transition-all shadow-2xl"
           >
             <ChevronLeft className="w-6 h-6" />
@@ -934,6 +934,11 @@ const TripDetails: React.FC = () => {
               transition={{ delay: 0.3 }}
               className="text-4xl md:text-7xl font-black tracking-tight font-serif mb-4"
             >
+              {trip.starting_city && (
+                <span className="text-2xl md:text-4xl block text-white/80 font-medium mb-2">
+                  From {trip.starting_city} to
+                </span>
+              )}
               {trip.destination_city}, <span className="text-white/70 italic">{trip.destination_country}</span>
             </motion.h1>
           </div>
@@ -1054,6 +1059,30 @@ const TripDetails: React.FC = () => {
           <div className="lg:col-span-2 space-y-12">
             {activeTab === 'overview' ? (
               <div className="space-y-12">
+                <Section title="Route" icon={MapPin}>
+                  <div className="flex items-center space-x-6">
+                    <div className="flex flex-col items-center">
+                      <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-inner">
+                        <MapPin className="w-6 h-6" />
+                      </div>
+                      <div className="w-1 h-12 bg-gradient-to-b from-indigo-100 to-purple-100 my-2 rounded-full" />
+                      <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 shadow-inner">
+                        <MapPin className="w-6 h-6" />
+                      </div>
+                    </div>
+                    <div className="flex flex-col space-y-10">
+                      <div>
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Starts From</span>
+                        <span className="text-2xl font-black text-gray-900 tracking-tight">{trip.starting_city || 'Not Specified'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Destination</span>
+                        <span className="text-2xl font-black text-gray-900 tracking-tight">{trip.destination_city}, {trip.destination_country}</span>
+                      </div>
+                    </div>
+                  </div>
+                </Section>
+
                 <Section title="About the Trip" icon={Info}>
                   <p className="text-lg text-gray-600 leading-relaxed font-medium">{trip.description}</p>
                 </Section>

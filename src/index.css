@@ -6,6 +6,14 @@
   --font-serif: "Cormorant Garamond", serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
+  /* Map indigo to our dynamic accent color */
+  --color-indigo-50: color-mix(in srgb, var(--accent-color) 5%, white);
+  --color-indigo-100: color-mix(in srgb, var(--accent-color) 10%, white);
+  --color-indigo-200: color-mix(in srgb, var(--accent-color) 20%, white);
+  --color-indigo-500: var(--accent-color);
+  --color-indigo-600: var(--accent-color);
+  --color-indigo-700: color-mix(in srgb, var(--accent-color) 90%, black);
+
   --animate-slow-zoom: slow-zoom 20s ease-in-out infinite alternate;
   --animate-gradient-x: gradient-x 15s ease infinite;
 
@@ -52,17 +60,94 @@
     @apply text-white;
   }
 
+  html.dark .text-gray-700 {
+    @apply text-gray-200;
+  }
+
+  html.dark .text-gray-600 {
+    @apply text-gray-300;
+  }
+
   html.dark .text-gray-500 {
     @apply text-gray-400;
   }
 
   html.dark .bg-gray-50 {
+    @apply bg-gray-900;
+  }
+
+  html.dark .bg-gray-100 {
     @apply bg-gray-800;
   }
 
   html.dark .border-gray-100 {
     @apply border-gray-800;
   }
+
+  html.dark .border-gray-200 {
+    @apply border-gray-700;
+  }
+}
+
+/* Explicit Dark Mode Overrides (Standard CSS for maximum compatibility) */
+.dark body, html.dark body {
+  background-color: #030712 !important; /* gray-950 */
+  color: #f9fafb !important; /* gray-50 */
+}
+
+.dark .bg-white, html.dark .bg-white {
+  background-color: #111827 !important; /* gray-900 */
+  border-color: #1f2937 !important; /* gray-800 */
+}
+
+.dark .bg-gray-50, html.dark .bg-gray-50 {
+  background-color: #030712 !important; /* gray-950 */
+}
+
+.dark .bg-gray-100 {
+  background-color: #111827 !important; /* gray-900 */
+}
+
+.dark .bg-gray-200 {
+  background-color: #1f2937 !important; /* gray-800 */
+}
+
+.dark .text-gray-900 {
+  color: #ffffff !important;
+}
+
+.dark .text-gray-800 {
+  color: #f3f4f6 !important;
+}
+
+.dark .text-gray-700 {
+  color: #e5e7eb !important;
+}
+
+.dark .text-gray-600 {
+  color: #d1d5db !important;
+}
+
+.dark .text-gray-500 {
+  color: #9ca3af !important;
+}
+
+.dark .border-gray-100 {
+  border-color: #1f2937 !important;
+}
+
+.dark input, .dark textarea, .dark select {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+  color: #ffffff !important;
+}
+
+.dark .shadow-sm {
+  box-shadow: none !important;
+}
+
+.dark .shadow-xl {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5) !important;
 }
 
 /* Accent Color Utilities */

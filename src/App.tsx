@@ -5,7 +5,7 @@
 
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './components/Auth/AuthContext';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Navbar } from './components/Layout/Navbar';
 import { Home } from './pages/Home';
 import { Login } from './pages/Auth/Login';
@@ -39,37 +39,33 @@ import { toast, Toaster } from 'sonner';
 const NotificationListener = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const processedNotifications = useRef(new Set<string>());
 
   useEffect(() => {
     if (!user || !user.uid) return;
 
     // Listen for notifications for the user
-    // We remove is_read and orderBy to avoid composite index requirement and potential SDK assertion errors
     const q = query(
       collection(db, 'notifications'),
       where('user_id', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      // Filter and sort in memory
-      const unreadDocs = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter((n: any) => !n.is_read)
-        .sort((a: any, b: any) => {
-          const timeA = a.created_at?.seconds || 0;
-          const timeB = b.created_at?.seconds || 0;
-          return timeB - timeA;
-        });
-
+      if (snapshot.metadata.fromCache) return; // Skip cache to avoid double toasts on reload
+      
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
           const data = change.doc.data();
-          if (data.is_read) return; // Only show toasts for unread ones
+          const docId = change.doc.id;
+          
+          if (data.is_read || processedNotifications.current.has(docId)) return;
 
           // Only show toast if it's very recent (within last 10 seconds)
           const createdAt = data.created_at?.toDate ? data.created_at.toDate() : (data.created_at ? new Date(data.created_at) : new Date());
           if (Date.now() - createdAt.getTime() < 10000) {
+            processedNotifications.current.add(docId);
             toast(data.title, {
+              id: docId, // Use document ID as toast ID to prevent duplicates
               description: data.body || data.message,
               action: data.link ? {
                 label: 'View',
@@ -128,15 +124,60 @@ const ScrollToTop = () => {
   return null;
 };
 
+const ThemeManager = () => {
+  const { profile } = useAuth();
+
+  useEffect(() => {
+    // Default values
+    const appearance = profile?.settings?.appearance || {
+      darkMode: false,
+      fontSize: 'medium',
+      theme: 'indigo'
+    };
+
+    const { darkMode, fontSize, theme } = appearance;
+
+    // Dark Mode
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      document.body.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.body.classList.remove('dark');
+    }
+
+    // Font Size
+    const fontSizes: Record<string, string> = {
+      small: '14px',
+      medium: '16px',
+      large: '18px'
+    };
+    document.documentElement.style.fontSize = fontSizes[fontSize] || '16px';
+
+    // Accent Color
+    const colors: Record<string, string> = {
+      indigo: '#4f46e5',
+      rose: '#e11d48',
+      emerald: '#10b981',
+      amber: '#f59e0b',
+      sky: '#0ea5e9'
+    };
+    document.documentElement.style.setProperty('--accent-color', colors[theme] || '#4f46e5');
+  }, [profile]);
+
+  return null;
+};
+
 export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
+        <ThemeManager />
         <Router>
           <NotificationListener />
           <ScrollToTop />
           <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
-            <Toaster position="top-center" richColors />
+            <Toaster position="top-center" richColors closeButton />
             <Navbar />
             <Routes>
               <Route path="/" element={<Home />} />

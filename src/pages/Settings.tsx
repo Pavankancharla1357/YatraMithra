@@ -18,6 +18,7 @@ import {
   Check,
   Trash2,
   Plus,
+  X,
   ExternalLink,
   Mail,
   MessageSquare,
@@ -47,7 +48,22 @@ export const Settings: React.FC = () => {
   const { user, profile, refreshProfile } = useAuth();
   const [currentView, setCurrentView] = useState<SettingsView>('main');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showAddCardModal, setShowAddCardModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [showMapsModal, setShowMapsModal] = useState(false);
+  const [contactType, setContactType] = useState<'email' | 'chat'>('email');
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [newCardData, setNewCardData] = useState({
+    number: '',
+    expiry: '',
+    cvv: '',
+    holder: '',
+    type: 'Visa'
+  });
+
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
   // Phone verification states
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -115,6 +131,9 @@ export const Settings: React.FC = () => {
         if (profile.settings.language) {
           setLanguageSettings(prev => ({ ...prev, ...profile.settings.language }));
         }
+        if (profile.settings.security) {
+          setTwoFactorEnabled(profile.settings.security.twoFactorEnabled || false);
+        }
       }
     }
   }, [profile]);
@@ -124,8 +143,10 @@ export const Settings: React.FC = () => {
     // Dark Mode
     if (appearanceSettings.darkMode) {
       document.documentElement.classList.add('dark');
+      document.body.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
+      document.body.classList.remove('dark');
     }
 
     // Font Size
@@ -599,9 +620,15 @@ export const Settings: React.FC = () => {
                 <p className="text-xs text-gray-500">Secure your account with 2FA</p>
               </div>
             </div>
-            <div className="w-12 h-6 bg-gray-200 rounded-full relative cursor-pointer">
-              <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow-sm" />
-            </div>
+            <button
+              onClick={handleToggle2FA}
+              className={`w-12 h-6 rounded-full relative transition-colors ${twoFactorEnabled ? 'bg-accent' : 'bg-gray-200'}`}
+            >
+              <motion.div
+                animate={{ x: twoFactorEnabled ? 24 : 4 }}
+                className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm"
+              />
+            </button>
           </div>
         </div>
 
@@ -663,16 +690,46 @@ export const Settings: React.FC = () => {
     }
   }, [profile]);
 
-  const handleAddCard = async () => {
+  const handleToggle2FA = async () => {
     if (!user) return;
-    const newCard = {
+    const newValue = !twoFactorEnabled;
+    setTwoFactorEnabled(newValue);
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        'settings.security.twoFactorEnabled': newValue,
+        updated_at: new Date().toISOString(),
+      });
+      toast.success(`Two-Factor Authentication ${newValue ? 'enabled' : 'disabled'}`);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to update 2FA settings');
+      setTwoFactorEnabled(!newValue);
+    }
+  };
+
+  const handleClearCache = () => {
+    setLoading(true);
+    setTimeout(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+      setLoading(false);
+      toast.success('Cache and local data cleared successfully');
+    }, 1500);
+  };
+
+  const handleAddCard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    
+    const card = {
       id: Math.random().toString(36).substr(2, 9),
-      type: 'Mastercard',
-      last4: Math.floor(1000 + Math.random() * 9000).toString(),
-      expiry: '08/27',
-      holder: profile?.name || 'Traveler'
+      type: newCardData.type,
+      last4: newCardData.number.slice(-4),
+      expiry: newCardData.expiry,
+      holder: newCardData.holder || profile?.name || 'Traveler'
     };
-    const updatedCards = [...savedCards, newCard];
+    
+    const updatedCards = [...savedCards, card];
     setSavedCards(updatedCards);
     
     try {
@@ -681,6 +738,8 @@ export const Settings: React.FC = () => {
         updated_at: new Date().toISOString(),
       });
       toast.success('New payment method added');
+      setShowAddCardModal(false);
+      setNewCardData({ number: '', expiry: '', cvv: '', holder: '', type: 'Visa' });
     } catch (error) {
       console.error(error);
       toast.error('Failed to save card');
@@ -767,7 +826,7 @@ export const Settings: React.FC = () => {
           ))}
 
           <button 
-            onClick={handleAddCard}
+            onClick={() => setShowAddCardModal(true)}
             className="w-full py-4 border-2 border-dashed border-gray-100 rounded-2xl text-gray-400 font-bold hover:border-indigo-200 hover:text-indigo-600 transition-all flex items-center justify-center gap-2"
           >
             <Plus className="w-5 h-5" />
@@ -1023,10 +1082,11 @@ export const Settings: React.FC = () => {
               <div className="text-right">
                 <p className="text-sm font-black text-gray-900">24.5 MB</p>
                 <button
-                  onClick={() => toast.success('Cache cleared successfully')}
-                  className="text-[10px] text-red-500 font-black uppercase tracking-widest mt-1 hover:underline"
+                  onClick={handleClearCache}
+                  disabled={loading}
+                  className="text-[10px] text-red-500 font-black uppercase tracking-widest mt-1 hover:underline disabled:opacity-50"
                 >
-                  Clear Cache
+                  {loading ? 'Clearing...' : 'Clear Cache'}
                 </button>
               </div>
             </div>
@@ -1035,7 +1095,10 @@ export const Settings: React.FC = () => {
                 <p className="text-sm font-bold text-gray-900">Offline Maps</p>
                 <p className="text-[10px] text-gray-500 font-medium">Manage downloaded map regions</p>
               </div>
-              <button className="text-[10px] text-indigo-600 font-black uppercase tracking-widest hover:underline">
+              <button 
+                onClick={() => setShowMapsModal(true)}
+                className="text-[10px] text-indigo-600 font-black uppercase tracking-widest hover:underline"
+              >
                 Manage
               </button>
             </div>
@@ -1070,15 +1133,34 @@ export const Settings: React.FC = () => {
           <h3 className="text-lg font-bold text-gray-900">Frequently Asked Questions</h3>
           <div className="space-y-4">
             {[
-              'How do I join a trip?',
-              'Is my payment information secure?',
-              'How can I verify my identity?',
-              'What happens if a trip is cancelled?',
-            ].map((q) => (
-              <button key={q} className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 text-left hover:bg-white hover:border-indigo-100 transition-all group">
-                <span className="text-sm font-bold text-gray-700">{q}</span>
-                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-600" />
-              </button>
+              { q: 'How do I join a trip?', a: 'You can join a trip by browsing the "Discover Trips" page and clicking "Join Now" on any trip that interests you. Some trips may require organizer approval.' },
+              { q: 'Is my payment information secure?', a: 'Yes, we use industry-standard encryption and secure payment gateways to ensure your financial data is always protected.' },
+              { q: 'How can I verify my identity?', a: 'You can verify your identity by linking your phone number in the "Security" settings and completing the OTP verification.' },
+              { q: 'What happens if a trip is cancelled?', a: 'If an organizer cancels a trip, all members will be notified immediately, and any payments made through the platform will be refunded according to our policy.' },
+            ].map((item, idx) => (
+              <div key={idx} className="space-y-2">
+                <button 
+                  onClick={() => setExpandedFaq(expandedFaq === idx ? null : idx)}
+                  className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 text-left hover:bg-white hover:border-indigo-100 transition-all group"
+                >
+                  <span className="text-sm font-bold text-gray-700">{item.q}</span>
+                  <ChevronRight className={`w-4 h-4 text-gray-300 group-hover:text-indigo-600 transition-transform ${expandedFaq === idx ? 'rotate-90' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {expandedFaq === idx && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="p-4 bg-indigo-50/30 rounded-2xl text-xs text-gray-600 leading-relaxed">
+                        {item.a}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             ))}
           </div>
         </div>
@@ -1086,11 +1168,17 @@ export const Settings: React.FC = () => {
         <div className="space-y-6 pt-6 border-t border-gray-100">
           <h3 className="text-lg font-bold text-gray-900">Contact Support</h3>
           <div className="grid grid-cols-2 gap-4">
-            <button className="p-6 bg-indigo-50 rounded-2xl text-center space-y-2 hover:bg-indigo-100 transition-all">
+            <button 
+              onClick={() => { setContactType('email'); setShowContactModal(true); }}
+              className="p-6 bg-indigo-50 rounded-2xl text-center space-y-2 hover:bg-indigo-100 transition-all"
+            >
               <Mail className="w-6 h-6 text-indigo-600 mx-auto" />
               <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Email Us</p>
             </button>
-            <button className="p-6 bg-emerald-50 rounded-2xl text-center space-y-2 hover:bg-emerald-100 transition-all">
+            <button 
+              onClick={() => { setContactType('chat'); setShowContactModal(true); }}
+              className="p-6 bg-emerald-50 rounded-2xl text-center space-y-2 hover:bg-emerald-100 transition-all"
+            >
               <MessageSquare className="w-6 h-6 text-emerald-600 mx-auto" />
               <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Live Chat</p>
             </button>
@@ -1250,6 +1338,210 @@ export const Settings: React.FC = () => {
                     {verifyingPhone ? 'Verifying...' : 'Verify'}
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Card Modal */}
+      <AnimatePresence>
+        {showAddCardModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl p-8"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Add Payment Method</h3>
+                <button onClick={() => setShowAddCardModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                  <X className="w-6 h-6 text-gray-400" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddCard} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Card Number</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={16}
+                    value={newCardData.number}
+                    onChange={(e) => setNewCardData({ ...newCardData, number: e.target.value.replace(/\D/g, '') })}
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-medium"
+                    placeholder="0000 0000 0000 0000"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Expiry Date</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="MM/YY"
+                      maxLength={5}
+                      value={newCardData.expiry}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/\D/g, '');
+                        if (val.length > 2) val = val.slice(0, 2) + '/' + val.slice(2);
+                        setNewCardData({ ...newCardData, expiry: val });
+                      }}
+                      className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-medium"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">CVV</label>
+                    <input
+                      type="password"
+                      required
+                      maxLength={3}
+                      value={newCardData.cvv}
+                      onChange={(e) => setNewCardData({ ...newCardData, cvv: e.target.value.replace(/\D/g, '') })}
+                      className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-medium"
+                      placeholder="•••"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Card Holder Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newCardData.holder}
+                    onChange={(e) => setNewCardData({ ...newCardData, holder: e.target.value })}
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-medium"
+                    placeholder="John Doe"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Card Type</label>
+                  <div className="flex gap-2">
+                    {['Visa', 'Mastercard', 'Amex'].map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setNewCardData({ ...newCardData, type })}
+                        className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                          newCardData.type === type ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 mt-4"
+                >
+                  Save Card
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Offline Maps Modal */}
+      <AnimatePresence>
+        {showMapsModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl p-8"
+            >
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Globe className="w-8 h-8 text-blue-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Offline Maps</h3>
+                <p className="text-sm text-gray-500 mt-2">
+                  Download maps to use when you don't have internet connection.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">Manali & Surroundings</p>
+                    <p className="text-[10px] text-gray-500">124 MB • Updated 2 days ago</p>
+                  </div>
+                  <button className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <button className="w-full py-4 border-2 border-dashed border-gray-100 rounded-2xl text-gray-400 font-bold hover:border-indigo-200 hover:text-indigo-600 transition-all flex items-center justify-center gap-2">
+                  <Plus className="w-5 h-5" />
+                  Download New Region
+                </button>
+
+                <button
+                  onClick={() => setShowMapsModal(false)}
+                  className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold hover:bg-gray-800 transition-all"
+                >
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Contact Support Modal */}
+      <AnimatePresence>
+        {showContactModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl p-8 text-center"
+            >
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 ${
+                contactType === 'email' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'
+              }`}>
+                {contactType === 'email' ? <Mail className="w-8 h-8" /> : <MessageSquare className="w-8 h-8" />}
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                {contactType === 'email' ? 'Email Support' : 'Live Chat'}
+              </h3>
+              <p className="text-sm text-gray-500 mb-8">
+                {contactType === 'email' 
+                  ? 'Our support team typically responds within 24 hours. Send your query to support@yatramitra.com'
+                  : 'Connect with our support agents for real-time assistance. Available 9 AM - 6 PM IST.'}
+              </p>
+              <div className="flex flex-col space-y-3">
+                <button
+                  onClick={() => {
+                    if (contactType === 'email') {
+                      window.location.href = 'mailto:support@yatramitra.com';
+                    } else {
+                      toast.info('Connecting to a support agent...');
+                      setTimeout(() => toast.success('Support agent connected! (Demo)'), 2000);
+                    }
+                    setShowContactModal(false);
+                  }}
+                  className={`w-full py-4 text-white rounded-2xl font-bold transition-all shadow-xl ${
+                    contactType === 'email' ? 'bg-indigo-600 shadow-indigo-100' : 'bg-emerald-600 shadow-emerald-100'
+                  }`}
+                >
+                  {contactType === 'email' ? 'Open Email App' : 'Start Chat'}
+                </button>
+                <button
+                  onClick={() => setShowContactModal(false)}
+                  className="w-full py-4 bg-gray-50 text-gray-600 rounded-2xl font-bold hover:bg-gray-100 transition-all"
+                >
+                  Close
+                </button>
               </div>
             </motion.div>
           </div>

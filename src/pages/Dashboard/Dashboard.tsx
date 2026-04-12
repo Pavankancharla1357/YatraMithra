@@ -57,7 +57,8 @@ export const Dashboard: React.FC = () => {
     const joinedQ = query(
       collection(db, 'trip_members'),
       where('user_id', '==', user.uid),
-      where('status', '==', 'approved')
+      where('status', '==', 'approved'),
+      where('role', '==', 'member')
     );
     const unsubscribeJoinedTrips = onSnapshot(joinedQ, async (snapshot) => {
       const joinedMemberData = snapshot.docs.map(doc => doc.data());
@@ -81,18 +82,22 @@ export const Dashboard: React.FC = () => {
 
     // 3. Fetch Saved Trips
     const fetchSavedTrips = async () => {
-      if (profile?.saved_trips?.length > 0) {
+      if (profile?.saved_trips && profile.saved_trips.length > 0) {
         const savedTripsResults = await Promise.all(
-          profile.saved_trips.slice(0, 10).map(async (id: string) => {
+          profile.saved_trips.slice(0, 20).map(async (id: string) => {
             try {
               const tripDoc = await getDoc(doc(db, 'trips', id));
-              return tripDoc.exists() ? { id: tripDoc.id, ...tripDoc.data() } : null;
+              if (tripDoc.exists()) {
+                return { id: tripDoc.id, ...tripDoc.data() };
+              }
+              return null;
             } catch (e) {
+              console.error(`Error fetching saved trip ${id}:`, e);
               return null;
             }
           })
         );
-        setSavedTrips(savedTripsResults.filter(t => t !== null));
+        setSavedTrips(savedTripsResults.filter((t): t is any => t !== null));
       } else {
         setSavedTrips([]);
       }
@@ -272,7 +277,7 @@ export const Dashboard: React.FC = () => {
       }
       return 0;
     });
-  }, [myTrips, joinedTrips, activeFilter, sortBy]);
+  }, [myTrips, joinedTrips, savedTrips, activeFilter, sortBy]);
 
   const profileStrength = useMemo(() => {
     if (!profile) return 0;

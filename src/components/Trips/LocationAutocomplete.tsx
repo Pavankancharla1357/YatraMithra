@@ -8,13 +8,15 @@ interface LocationAutocompleteProps {
   placeholder?: string;
   defaultValue?: string;
   className?: string;
+  historyKey?: string;
 }
 
 export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
   onSelect,
   placeholder = "Search for a destination...",
   defaultValue = "",
-  className = ""
+  className = "",
+  historyKey = "recent_locations_osm"
 }) => {
   const [value, setValue] = useState(defaultValue);
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -31,20 +33,22 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
   const searchTimeoutRef = useRef<any>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem('recent_locations_osm');
+    const saved = localStorage.getItem(historyKey);
     if (saved) {
       try {
         setRecentSearches(JSON.parse(saved));
       } catch (e) {
         console.error("Error parsing recent searches", e);
       }
+    } else {
+      setRecentSearches([]);
     }
-  }, []);
+  }, [historyKey]);
 
   const saveToRecent = (location: any) => {
     const newRecent = [location, ...recentSearches.filter(s => s.place_id !== location.place_id)].slice(0, 5);
     setRecentSearches(newRecent);
-    localStorage.setItem('recent_locations_osm', JSON.stringify(newRecent));
+    localStorage.setItem(historyKey, JSON.stringify(newRecent));
   };
 
   useEffect(() => {

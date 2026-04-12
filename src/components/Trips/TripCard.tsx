@@ -4,6 +4,9 @@ import { MapPin, Calendar, Users, IndianRupee, Star, Zap, User, Check, Heart, Ey
 import { motion } from 'motion/react';
 import { useAuth } from '../Auth/AuthContext';
 import { subscribeToUserRating } from '../../services/reviewService';
+import { db } from '../../firebase';
+import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { toast } from 'sonner';
 
 interface TripCardProps {
   trip: any;
@@ -108,12 +111,38 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
     if (user && trip.members?.includes(user.uid)) {
       setIsJoined(true);
     }
-    // In a real app, we'd check join_requests collection for hasRequested
-  }, [user, trip.members]);
+    // Check if trip is saved in user profile
+    if (profile?.saved_trips?.includes(trip.id)) {
+      setIsSaved(true);
+    } else {
+      setIsSaved(false);
+    }
+  }, [user, profile, trip.id, trip.members]);
 
-  const handleSave = (e: React.MouseEvent) => {
+  const handleSave = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsSaved(!isSaved);
+    if (!user) {
+      navigate('/login', { state: { from: `/trips/${trip.id}` } });
+      return;
+    }
+
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      if (isSaved) {
+        await updateDoc(userRef, {
+          saved_trips: arrayRemove(trip.id)
+        });
+        toast.success('Trip removed from saved');
+      } else {
+        await updateDoc(userRef, {
+          saved_trips: arrayUnion(trip.id)
+        });
+        toast.success('Trip saved successfully!');
+      }
+    } catch (error) {
+      console.error('Error saving trip:', error);
+      toast.error('Failed to update saved trips');
+    }
   };
 
   const handleShare = (e: React.MouseEvent) => {
@@ -246,7 +275,7 @@ export const TripCard: React.FC<TripCardProps> = ({ trip }) => {
       <div className="p-4 flex-1 flex flex-col">
         <div className="flex justify-between items-start mb-2">
           <h3 className="text-lg font-black text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-1 tracking-tight flex-1 mr-2">
-            {trip.destination_city}, {trip.destination_country}
+            {trip.starting_city ? `${trip.starting_city} → ` : ''}{trip.destination_city}, {trip.destination_country}
           </h3>
           <div className="text-right shrink-0">
             <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">From</div>

@@ -36,6 +36,7 @@ export const DiscoverTrips: React.FC = () => {
     minGroupSize: 1,
     maxGroupSize: 20,
     travelStyle: '',
+    startingCity: '',
   });
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [sortByNearby, setSortByNearby] = useState(false);
@@ -321,7 +322,8 @@ export const DiscoverTrips: React.FC = () => {
     if (status !== 'open' && status !== 'active') return false;
 
     const matchesSearch = (trip.destination_city?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (trip.destination_country?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+      (trip.destination_country?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (trip.starting_city?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     
     const matchesTags = selectedTags.length === 0 || 
       (trip.trip_types && selectedTags.every(tag => trip.trip_types.includes(tag)));
@@ -329,6 +331,8 @@ export const DiscoverTrips: React.FC = () => {
     const matchesStartDate = !filters.startDate || (trip.start_date && new Date(trip.start_date) >= new Date(filters.startDate));
     const matchesEndDate = !filters.endDate || (trip.end_date && new Date(trip.end_date) <= new Date(filters.endDate));
     
+    const matchesStartingCity = !filters.startingCity || (trip.starting_city?.toLowerCase() || '').includes(filters.startingCity.toLowerCase());
+
     // Relaxed budget check: if no budget specified, it matches any budget filter
     const matchesBudget = !trip.budget_max || trip.budget_max <= filters.maxBudget;
     
@@ -337,7 +341,7 @@ export const DiscoverTrips: React.FC = () => {
     
     const matchesStyle = !filters.travelStyle || trip.travel_style === filters.travelStyle;
 
-    return matchesSearch && matchesTags && matchesStartDate && matchesEndDate && matchesBudget && matchesStyle && matchesGroupSize;
+    return matchesSearch && matchesTags && matchesStartDate && matchesEndDate && matchesBudget && matchesStyle && matchesGroupSize && matchesStartingCity;
   }).sort((a, b) => {
     if (sortByNearby && userLocation && a.destination_lat && b.destination_lat) {
       const distA = calculateDistance(userLocation.lat, userLocation.lng, a.destination_lat, a.destination_lng);
@@ -744,6 +748,20 @@ export const DiscoverTrips: React.FC = () => {
                     />
                   </div>
 
+                  <div className="space-y-4">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Starting From</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="City name..."
+                        value={filters.startingCity}
+                        onChange={(e) => setFilters({ ...filters, startingCity: e.target.value })}
+                        className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-2xl text-xs font-bold text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                      />
+                    </div>
+                  </div>
+
                   <div className="md:col-span-3 lg:col-span-4 flex justify-end pt-4 border-t border-gray-200">
                     <button 
                       onClick={() => {
@@ -753,7 +771,8 @@ export const DiscoverTrips: React.FC = () => {
                           maxBudget: 100000, 
                           minGroupSize: 1, 
                           maxGroupSize: 20, 
-                          travelStyle: '' 
+                          travelStyle: '',
+                          startingCity: ''
                         });
                         setSelectedTags([]);
                         setSearchTerm('');
@@ -930,7 +949,8 @@ export const DiscoverTrips: React.FC = () => {
                     maxBudget: 100000, 
                     minGroupSize: 1, 
                     maxGroupSize: 20, 
-                    travelStyle: '' 
+                    travelStyle: '',
+                    startingCity: ''
                   });
                 }}
                 className="px-10 py-5 bg-white text-gray-900 border border-gray-200 rounded-2xl font-black text-sm hover:bg-gray-50 transition-all shadow-sm"

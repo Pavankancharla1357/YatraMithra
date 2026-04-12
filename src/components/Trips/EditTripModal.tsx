@@ -31,6 +31,8 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onClose, onS
     destination_country: trip.destination_country,
     destination_lat: trip.destination_lat || 0,
     destination_lng: trip.destination_lng || 0,
+    starting_city: trip.starting_city || '',
+    starting_country: trip.starting_country || 'India',
     start_date: trip.start_date,
     end_date: trip.end_date,
     budget_max: trip.budget_max.toString(),
@@ -93,9 +95,9 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onClose, onS
           model: "gemini-flash-latest",
           contents: [{
             parts: [{
-              text: `Generate a catchy, engaging travel trip description for a trip to ${formData.destination_city}, ${formData.destination_country}. 
+              text: `Generate a catchy, engaging travel trip description for a trip starting from ${formData.starting_city}, ${formData.starting_country} to ${formData.destination_city}, ${formData.destination_country}. 
               Travel style: ${formData.travel_style}. 
-              Keep it under 150 words. Focus on why someone should join this trip.`
+              Keep it under 150 words. Focus on why someone should join this trip and mention the starting point.`
             }]
           }]
         });
@@ -137,11 +139,12 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onClose, onS
           model: "gemini-flash-latest",
           contents: [{
             parts: [{
-              text: `Generate a day-wise itinerary for a ${diffDays}-day trip to ${formData.destination_city}, ${formData.destination_country}. 
+              text: `Generate a day-wise itinerary for a ${diffDays}-day trip starting from ${formData.starting_city}, ${formData.starting_country} to ${formData.destination_city}, ${formData.destination_country}. 
               Travel style: ${formData.travel_style}. 
+              The itinerary should start from ${formData.starting_city} and include travel to ${formData.destination_city}.
               Format the response as a JSON array of objects, each with 'day' (number) and 'activities' (array of strings). 
               IMPORTANT: Return ONLY the JSON array, no other text.
-              Example: [{"day": 1, "activities": ["Arrival", "Check-in", "Dinner at local market"]}]`
+              Example: [{"day": 1, "activities": ["Departure from ${formData.starting_city}", "Arrival in ${formData.destination_city}", "Check-in", "Dinner at local market"]}]`
             }]
           }]
         });
@@ -277,7 +280,24 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onClose, onS
         </div>
         
         <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto custom-scrollbar">
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center">
+                <MapPin className="w-4 h-4 mr-2 text-indigo-600" /> Starting Point
+              </label>
+              <LocationAutocomplete
+                onSelect={(location) => {
+                  setFormData({
+                    ...formData,
+                    starting_city: location.city || '',
+                    starting_country: location.country || 'India'
+                  });
+                }}
+                defaultValue={formData.starting_city}
+                historyKey="recent_starting_points"
+                placeholder="Where does the trip start?"
+              />
+            </div>
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center">
                 <MapPin className="w-4 h-4 mr-2 text-indigo-600" /> Destination
@@ -293,6 +313,7 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onClose, onS
                   });
                 }}
                 defaultValue={formData.destination_city}
+                historyKey="recent_destinations"
                 placeholder="Where are you planning to go?"
               />
             </div>
@@ -323,7 +344,10 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({ trip, onClose, onS
                 required
                 type="number"
                 value={formData.budget_max}
-                onChange={(e) => setFormData({ ...formData, budget_max: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/^0+/, '');
+                  setFormData({ ...formData, budget_max: val === '' ? '0' : val });
+                }}
                 className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50 hover:bg-white transition-all"
               />
             </div>

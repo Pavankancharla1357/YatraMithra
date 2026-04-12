@@ -45,6 +45,8 @@ export const CreateTrip: React.FC = () => {
     destination_country: 'India',
     destination_lat: 0,
     destination_lng: 0,
+    starting_city: '',
+    starting_country: 'India',
     start_date: '',
     end_date: '',
     budget_max: 25000,
@@ -164,9 +166,9 @@ export const CreateTrip: React.FC = () => {
           model: "gemini-flash-latest",
           contents: [{
             parts: [{
-              text: `Generate a catchy, engaging travel trip description for a trip to ${formData.destination_city}, ${formData.destination_country}. 
+              text: `Generate a catchy, engaging travel trip description for a trip starting from ${formData.starting_city}, ${formData.starting_country} to ${formData.destination_city}, ${formData.destination_country}. 
               Travel style: ${formData.travel_style}. Trip types: ${formData.trip_types.join(', ')}. 
-              Keep it under 150 words. Focus on why someone should join this trip.`
+              Keep it under 150 words. Focus on why someone should join this trip and mention the starting point.`
             }]
           }]
         });
@@ -209,11 +211,12 @@ export const CreateTrip: React.FC = () => {
           model: "gemini-flash-latest",
           contents: [{
             parts: [{
-              text: `Generate a day-wise itinerary for a ${diffDays}-day trip to ${formData.destination_city}, ${formData.destination_country}. 
+              text: `Generate a day-wise itinerary for a ${diffDays}-day trip starting from ${formData.starting_city}, ${formData.starting_country} to ${formData.destination_city}, ${formData.destination_country}. 
               Travel style: ${formData.travel_style}. Trip types: ${formData.trip_types.join(', ')}. 
+              The itinerary should start from ${formData.starting_city} and include travel to ${formData.destination_city}.
               Format the response as a JSON array of objects, each with 'day' (number) and 'activities' (array of strings). 
               IMPORTANT: Return ONLY the JSON array, no other text.
-              Example: [{"day": 1, "activities": ["Arrival", "Check-in", "Dinner at local market"]}]`
+              Example: [{"day": 1, "activities": ["Departure from ${formData.starting_city}", "Arrival in ${formData.destination_city}", "Check-in", "Dinner at local market"]}]`
             }]
           }]
         });
@@ -247,15 +250,21 @@ export const CreateTrip: React.FC = () => {
 
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
+  const hasLoadedDraft = useRef(false);
+
   // Load draft on mount
   useEffect(() => {
+    if (hasLoadedDraft.current) return;
+    
     const savedDraft = localStorage.getItem('trip_draft');
     if (savedDraft) {
       try {
         const draft = JSON.parse(savedDraft);
         setFormData(prev => ({ ...prev, ...draft }));
         
+        hasLoadedDraft.current = true;
         toast.info("Draft loaded!", {
+          id: 'draft-loaded', // Use a fixed ID to prevent duplicates
           description: "You can continue where you left off or start fresh.",
           action: {
             label: "Clear Draft",
@@ -368,7 +377,7 @@ export const CreateTrip: React.FC = () => {
       localStorage.removeItem('trip_draft');
 
       toast.success("Trip published successfully!");
-      navigate(`/trips/${docRef.id}`);
+      navigate(`/trips/${docRef.id}`, { replace: true });
     } catch (error: any) {
       console.error('Error creating trip:', error);
       toast.error(error.message || 'Failed to create trip. Please try again.');
@@ -464,21 +473,39 @@ export const CreateTrip: React.FC = () => {
                       <h2 className="text-xl font-black text-gray-900 tracking-tight">Trip Basics</h2>
                     </div>
                     <div className="space-y-6">
-                      <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Destination</label>
-                        <LocationAutocomplete
-                          defaultValue={formData.destination_city}
-                          onSelect={(location) => {
-                            setFormData({
-                              ...formData,
-                              destination_city: location.city || '',
-                              destination_country: location.country || 'India',
-                              destination_lat: location.lat,
-                              destination_lng: location.lng
-                            });
-                          }}
-                          placeholder="Where are you planning to go?"
-                        />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Starting Point</label>
+                          <LocationAutocomplete
+                            defaultValue={formData.starting_city}
+                            historyKey="recent_starting_points"
+                            onSelect={(location) => {
+                              setFormData({
+                                ...formData,
+                                starting_city: location.city || '',
+                                starting_country: location.country || 'India'
+                              });
+                            }}
+                            placeholder="Where does the trip start?"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Destination</label>
+                          <LocationAutocomplete
+                            defaultValue={formData.destination_city}
+                            historyKey="recent_destinations"
+                            onSelect={(location) => {
+                              setFormData({
+                                ...formData,
+                                destination_city: location.city || '',
+                                destination_country: location.country || 'India',
+                                destination_lat: location.lat,
+                                destination_lng: location.lng
+                              });
+                            }}
+                            placeholder="Where are you planning to go?"
+                          />
+                        </div>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <CustomDatePicker
@@ -569,7 +596,10 @@ export const CreateTrip: React.FC = () => {
                             <input
                               type="number"
                               value={formData.budget_max}
-                              onChange={(e) => setFormData({ ...formData, budget_max: parseInt(e.target.value) || 0 })}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/^0+/, '');
+                                setFormData({ ...formData, budget_max: val === '' ? 0 : parseInt(val) });
+                              }}
                               className="w-24 px-2 py-1 bg-white border border-gray-200 rounded-lg text-sm font-black text-indigo-600 focus:ring-2 focus:ring-indigo-500 outline-none"
                             />
                           </div>
@@ -577,7 +607,7 @@ export const CreateTrip: React.FC = () => {
                         <input
                           type="range"
                           min="1000"
-                          max="500000"
+                          max="100000"
                           step="1000"
                           value={formData.budget_max}
                           onChange={(e) => setFormData({ ...formData, budget_max: parseInt(e.target.value) })}
@@ -585,9 +615,10 @@ export const CreateTrip: React.FC = () => {
                         />
                         <div className="flex justify-between mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                           <span>₹1K</span>
+                          <span>₹25K</span>
                           <span>₹50K</span>
+                          <span>₹75K</span>
                           <span>₹100K</span>
-                          <span>₹500K+</span>
                         </div>
                       </div>
                       

@@ -83,6 +83,8 @@
       "type": "object",
       "properties": {
         "organizer_id": { "type": "string" },
+        "starting_city": { "type": "string", "description": "City where the trip starts" },
+        "starting_country": { "type": "string", "description": "Country where the trip starts" },
         "destination_city": { "type": "string" },
         "destination_country": { "type": "string" },
         "destination_lat": { "type": "number" },
