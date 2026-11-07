@@ -1,10 +1,12 @@
 {
-  "projectId": "ai-studio-applet-webapp-aae99",
-  "appId": "1:556377461123:web:46e194edd2e06642c666b6",
-  "apiKey": "AIzaSyDqhil4ZSvD_ki1IMZBRup6EvH2L25lp5Q",
-  "authDomain": "ai-studio-applet-webapp-aae99.firebaseapp.com",
+  "projectId": "tripbridge-app",
+  "appId": "1:583655201576:web:afd651ea1dd118f1dfce1d",
+  "apiKey": "AIzaSyAbb8OmHGG-ulvqJ9FVDLSPRPCVU4-_7zU",
+  "authDomain": "tripbridge-app.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-0ea9706e-6762-4ed5-adb3-ae6d3611f08b",
-  "storageBucket": "ai-studio-applet-webapp-aae99.firebasestorage.app",
-  "messagingSenderId": "556377461123",
-  "measurementId": ""
+  "storageBucket": "tripbridge-app.firebasestorage.app",
+  "messagingSenderId": "583655201576",
+  "measurementId": "",
+  "oAuthClientId": "583655201576-u0p77uc105l2aboj6kvd92t0lb4q9eim.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
 }
